@@ -1,0 +1,19 @@
+package com.example.mlbanalysis.common.error;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class ApiExceptionHandler {
+
+    static final String MLB_API_UNAVAILABLE_CODE = "MLB_API_UNAVAILABLE";
+    static final String MLB_API_UNAVAILABLE_MESSAGE = "MLB team data is temporarily unavailable.";
+
+    @ExceptionHandler(MlbApiException.class)
+    public ResponseEntity<ErrorResponse> handleMlbApiException(MlbApiException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ErrorResponse(MLB_API_UNAVAILABLE_CODE, MLB_API_UNAVAILABLE_MESSAGE));
+    }
+}
