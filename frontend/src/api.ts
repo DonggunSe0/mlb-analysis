@@ -55,10 +55,54 @@ export type PlayerSearchResponse = {
   players: Player[]
 }
 
+export type CurrentUser = {
+  id: number
+  email: string
+  displayName: string
+}
+
+export type AuthResponse = {
+  token: string
+  expiresAt: string
+  user: CurrentUser
+}
+
 async function request<T>(path: string): Promise<T> {
   const response = await fetch(path)
   if (!response.ok) {
     throw new Error(`API 요청 실패 (${response.status})`)
+  }
+  return response.json() as Promise<T>
+}
+
+async function jsonRequest<T>(path: string, body: unknown, token?: string): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    throw new Error(`API 요청 실패 (${response.status})`)
+  }
+  return response.json() as Promise<T>
+}
+
+async function authRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`API 요청 실패 (${response.status})`)
+  }
+  if (response.status === 204) {
+    return undefined as T
   }
   return response.json() as Promise<T>
 }
@@ -77,4 +121,20 @@ export function fetchTeamPlayers(teamId: number) {
 
 export function searchPlayers(name: string) {
   return request<PlayerSearchResponse>(`/api/v1/players/search?name=${encodeURIComponent(name)}`)
+}
+
+export function register(email: string, displayName: string, password: string) {
+  return jsonRequest<AuthResponse>('/api/v1/auth/register', { email, displayName, password })
+}
+
+export function login(email: string, password: string) {
+  return jsonRequest<AuthResponse>('/api/v1/auth/login', { email, password })
+}
+
+export function fetchCurrentUser(token: string) {
+  return authRequest<CurrentUser>('/api/v1/auth/me', token)
+}
+
+export function logout(token: string) {
+  return authRequest<void>('/api/v1/auth/logout', token, { method: 'POST' })
 }
