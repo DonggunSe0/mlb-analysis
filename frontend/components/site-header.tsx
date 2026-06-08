@@ -2,12 +2,14 @@
 
 import { cn } from "@/lib/utils"
 
-export type Section = "games" | "teams" | "players"
+export type Section = "games" | "teams" | "players" | "news" | "allstar"
 
 const items: { id: Section; label: string }[] = [
   { id: "games", label: "오늘의 경기" },
   { id: "teams", label: "팀" },
   { id: "players", label: "선수 검색" },
+  { id: "news", label: "뉴스" },
+  { id: "allstar", label: "올스타 투표" },
 ]
 
 export function SiteHeader({ active, onSelect }: { active: Section; onSelect: (s: Section) => void }) {

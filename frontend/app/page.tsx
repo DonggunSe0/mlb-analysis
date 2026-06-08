@@ -5,6 +5,8 @@ import { SiteHeader, type Section } from "@/components/site-header"
 import { GamesSection } from "@/components/games-section"
 import { TeamsSection } from "@/components/teams-section"
 import { PlayersSection } from "@/components/players-section"
+import { NewsSection } from "@/components/news-section"
+import { AllStarVoteSection } from "@/components/all-star-vote-section"
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -21,6 +23,8 @@ export default function Page() {
         {section === "games" && <GamesSection date={date} onDateChange={setDate} />}
         {section === "teams" && <TeamsSection />}
         {section === "players" && <PlayersSection />}
+        {section === "news" && <NewsSection />}
+        {section === "allstar" && <AllStarVoteSection />}
       </main>
       <footer className="border-t border-border">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">

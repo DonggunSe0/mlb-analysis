@@ -21,7 +21,7 @@ import java.util.List;
 @Entity
 @Table(
         name = "all_star_ballots",
-        uniqueConstraints = @UniqueConstraint(name = "uk_all_star_ballot_user_vote_date", columnNames = {"user_id", "voteDate"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_all_star_ballot_user_vote_date", columnNames = {"user_id", "vote_date"})
 )
 public class AllStarBallot {
     @Id
@@ -32,7 +32,7 @@ public class AllStarBallot {
     @JoinColumn(name = "user_id", nullable = false)
     private AuthUser user;
 
-    @Column(nullable = false)
+    @Column(name = "vote_date", nullable = false)
     private LocalDate voteDate;
 
     @Column(nullable = false, updatable = false)
