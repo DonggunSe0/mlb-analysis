@@ -1,6 +1,6 @@
 # MLB Analysis Frontend
 
-React + Vite + TypeScript + Tailwind CSS 기반의 한국어 MLB Analysis MVP 프론트엔드입니다.
+Next.js + React + TypeScript + Tailwind CSS 기반의 한국어 MLB Analysis 프론트엔드입니다.
 
 ## 실행
 
@@ -28,7 +28,7 @@ npm install
 npm run dev
 ```
 
-Vite dev server는 `/api` 요청을 `http://localhost:8080`으로 proxy합니다.
+Next dev server는 `/api` 요청을 `http://localhost:8080`으로 rewrite합니다.
 
 ## 검증
 
