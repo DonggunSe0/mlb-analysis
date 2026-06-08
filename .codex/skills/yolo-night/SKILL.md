@@ -25,13 +25,13 @@ Maximize useful, verified progress while the user is away. Prefer high-impact re
 - Non-destructive cleanup of generated artifacts already ignored by git.
 - Running lint, test, build, smoke checks, and local dev diagnostics.
 - Creating feature branches, commits, PRs, and merging PRs when CI/permissions allow.
-- Updating docs, tests, CI, type definitions, API clients, and frontend/backend code.
+- Updating docs, tests, CI, type definitions, API clients, frontend/backend code, and project dependencies when they materially improve delivery.
 
 ## Hard stops / ask first
 - Force push, history rewrite of shared branches, deleting remote branches, or resetting `main`.
 - Deleting user data, databases, credentials, `.env*`, or non-generated assets.
 - Changing billing, payments, production infrastructure, DNS, secrets, org settings, repo visibility, or external account settings.
-- Installing new runtime dependencies unless clearly necessary and justified in the commit/PR notes.
+- Adding dependencies is allowed when useful; prefer reputable, maintained packages and record why they were added in commit/PR notes.
 - If a command needs a secret not already available through the environment/credential helper.
 
 ## Backlog selection order
@@ -41,7 +41,8 @@ Maximize useful, verified progress while the user is away. Prefer high-impact re
 4. Improve reliability/error states/loading/empty states.
 5. Improve UX polish already aligned with `DESIGN.md`.
 6. Refactor only when it removes duplication or clarifies boundaries without broad churn.
-7. Update README/DESIGN/API docs to match implemented behavior.
+7. Add or upgrade dependencies when they unlock clear product quality, testing, DX, or reliability wins.
+8. Update README/DESIGN/API docs to match implemented behavior.
 
 ## Verification contract
 For every slice, run the smallest proof first, then broader checks before commit:
@@ -54,7 +55,7 @@ If a check fails, fix and rerun. If blocked, record the blocker and continue wit
 ## Git contract
 - Work from an up-to-date `origin/main` unless continuing a user-specified branch.
 - Use descriptive feature branches.
-- Commit each verified slice with the Lore Commit Protocol from AGENTS.md.
+- Commit each verified slice with the Lore Commit Protocol from AGENTS.md; mention any dependency additions/upgrades in `Constraint:` or `Directive:`.
 - Keep diffs reviewable. Prefer multiple small PRs over one huge PR.
 - Push and create PRs when credentials allow. Merge only when mergeable and checks are not failing.
 
