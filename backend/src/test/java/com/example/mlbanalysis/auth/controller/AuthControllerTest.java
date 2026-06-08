@@ -55,6 +55,17 @@ class AuthControllerTest {
     }
 
     @Test
+    void registerValidationFailureMapsToBadRequestEnvelope() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"not-an-email\",\"displayName\":\"F\",\"password\":\"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Request validation failed."))
+                .andExpect(jsonPath("$.details.length()").value(3));
+    }
+
+    @Test
     void meReturnsCurrentUserFromBearerToken() throws Exception {
         when(authService.currentUser(eq("Bearer token-123")))
                 .thenReturn(new CurrentUserResponse(1L, "fan@example.com", "Fan"));

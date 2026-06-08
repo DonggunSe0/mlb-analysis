@@ -56,6 +56,15 @@ class GameControllerTest {
     }
 
     @Test
+    void invalidDateMapsToBadRequestEnvelope() throws Exception {
+        mockMvc.perform(get("/api/v1/games").param("date", "bad-date"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Request validation failed."))
+                .andExpect(jsonPath("$.details[0]").value("date has an invalid value."));
+    }
+
+    @Test
     void getGamesMapsProviderFailureToBadGateway() throws Exception {
         when(gameService.getGames(LocalDate.parse("2026-06-01")))
                 .thenThrow(new MlbApiException("provider unavailable"));
