@@ -27,6 +27,7 @@ curl "http://localhost:8080/api/v1/teams"
 curl "http://localhost:8080/api/v1/teams/133/players"
 curl "http://localhost:8080/api/v1/players/search?name=Mike%20Trout"
 curl "http://localhost:8080/api/v1/players/545361"
+curl "http://localhost:8080/api/v1/players/545361/stats?season=2025&group=hitting"
 ```
 
 ## 프론트 실행

@@ -78,6 +78,75 @@ class StatsApiMlbPlayerClientTest {
     }
 
     @Test
+    void requestsPlayerStatsEndpointAndDeserializesSeasonStats() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/people/545361/stats?stats=season&group=hitting&season=2025")))
+                .andRespond(withSuccess("""
+                        { "stats": [ {
+                          "type": { "displayName": "season" },
+                          "group": { "displayName": "hitting" },
+                          "splits": [ {
+                            "season": "2025",
+                            "stat": {
+                              "gamesPlayed": 130,
+                              "atBats": 456,
+                              "runs": 73,
+                              "hits": 106,
+                              "doubles": 14,
+                              "triples": 1,
+                              "homeRuns": 26,
+                              "rbi": 64,
+                              "baseOnBalls": 87,
+                              "strikeOuts": 178,
+                              "avg": ".232",
+                              "obp": ".359",
+                              "slg": ".439",
+                              "ops": ".798",
+                              "stolenBases": 2
+                            }
+                          } ]
+                        } ] }
+                        """, MediaType.APPLICATION_JSON));
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        var stats = client.getPlayerStats(545361, "2025", "hitting");
+
+        assertThat(stats.gamesPlayed()).isEqualTo(130);
+        assertThat(stats.homeRuns()).isEqualTo(26);
+        assertThat(stats.ops()).isEqualTo(".798");
+        server.verify();
+    }
+
+    @Test
+    void returnsNullWhenPlayerStatsHaveNoSplits() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/people/545361/stats?stats=season&group=pitching&season=2025")))
+                .andRespond(withSuccess("{\"stats\":[{\"splits\":[]}]}", MediaType.APPLICATION_JSON));
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        assertThat(client.getPlayerStats(545361, "2025", "pitching")).isNull();
+        server.verify();
+    }
+
+    @Test
+    void convertsPlayerStatsServerFailureToMlbApiException() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/people/545361/stats?stats=season&group=hitting&season=2025")))
+                .andRespond(withServerError());
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        assertThatThrownBy(() -> client.getPlayerStats(545361, "2025", "hitting")).isInstanceOf(MlbApiException.class);
+        server.verify();
+    }
+
+    @Test
+    void convertsMalformedPlayerStatsResponseToMlbApiException() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/people/545361/stats?stats=season&group=hitting&season=2025")))
+                .andRespond(withSuccess("{\"unexpected\":true}", MediaType.APPLICATION_JSON));
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        assertThatThrownBy(() -> client.getPlayerStats(545361, "2025", "hitting")).isInstanceOf(MlbApiException.class);
+        server.verify();
+    }
+
+    @Test
     void convertsPlayerSearchServerFailureToMlbApiException() {
         server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/people/search?names=Mike%20Trout")))
                 .andRespond(withServerError());

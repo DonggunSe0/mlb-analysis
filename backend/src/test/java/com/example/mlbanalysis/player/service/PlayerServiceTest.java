@@ -7,6 +7,7 @@ import com.example.mlbanalysis.common.error.MlbApiException;
 import com.example.mlbanalysis.player.client.dto.MlbPlayerDto;
 import com.example.mlbanalysis.player.client.dto.MlbPlayerPositionDto;
 import com.example.mlbanalysis.player.client.dto.MlbPlayerSideDto;
+import com.example.mlbanalysis.player.client.dto.MlbPlayerSeasonStatDto;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +34,7 @@ class PlayerServiceTest {
         assertThat(response.primaryPosition()).isEqualTo("Outfielder");
         assertThat(response.batSide()).isEqualTo("Right");
         assertThat(response.pitchHand()).isEqualTo("Right");
+        assertThat(response.headshotUrl()).isEqualTo("https://img.mlbstatic.com/mlb-photos/image/upload/w_213,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/545361/headshot/67/current");
     }
 
 
@@ -64,6 +66,56 @@ class PlayerServiceTest {
         assertThat(response.players()).hasSize(1);
         assertThat(response.players().getFirst().id()).isEqualTo(545361);
         assertThat(response.players().getFirst().fullName()).isEqualTo("Mike Trout");
+    }
+
+    @Test
+    void mapsPlayerSeasonStatsIntoPublicDto() {
+        var service = new PlayerService(new com.example.mlbanalysis.player.client.MlbPlayerClient() {
+            @Override
+            public MlbPlayerDto getPlayer(Integer playerId) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public MlbPlayerSeasonStatDto getPlayerStats(Integer playerId, String season, String group) {
+                return new MlbPlayerSeasonStatDto(
+                        130, 456, 73, 106, 14, 1, 26, 64, 87, 178,
+                        ".232", ".359", ".439", ".798", 2
+                );
+            }
+        });
+
+        var response = service.getPlayerStats(545361, "2025", "hitting");
+
+        assertThat(response.playerId()).isEqualTo(545361);
+        assertThat(response.season()).isEqualTo("2025");
+        assertThat(response.group()).isEqualTo("hitting");
+        assertThat(response.gamesPlayed()).isEqualTo(130);
+        assertThat(response.homeRuns()).isEqualTo(26);
+        assertThat(response.ops()).isEqualTo(".798");
+    }
+
+    @Test
+    void mapsMissingPlayerSeasonStatsToEmptyPublicDto() {
+        var service = new PlayerService(new com.example.mlbanalysis.player.client.MlbPlayerClient() {
+            @Override
+            public MlbPlayerDto getPlayer(Integer playerId) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public MlbPlayerSeasonStatDto getPlayerStats(Integer playerId, String season, String group) {
+                return null;
+            }
+        });
+
+        var response = service.getPlayerStats(545361, "2025", "pitching");
+
+        assertThat(response.playerId()).isEqualTo(545361);
+        assertThat(response.season()).isEqualTo("2025");
+        assertThat(response.group()).isEqualTo("pitching");
+        assertThat(response.gamesPlayed()).isNull();
+        assertThat(response.ops()).isNull();
     }
 
     @Test
