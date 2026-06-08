@@ -1,4 +1,4 @@
-import type { Game, Player, PlayerStats, Team, TeamPlayer } from './types'
+import type { Game, Player, PlayerStats, Team, TeamPlayer, TeamStanding } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -11,6 +11,7 @@ export class ApiError extends Error {
 
 type GameEnvelope = { games: Omit<Game, 'homeTeamId' | 'awayTeamId'>[] }
 type TeamEnvelope = { teams: Team[] }
+type TeamStandingEnvelope = { standings: TeamStanding[] }
 type RosterEnvelope = { players: TeamPlayer[] }
 type PlayerSearchEnvelope = { players: Player[] }
 
@@ -34,6 +35,10 @@ function normalizeResponse(url: string, data: unknown): unknown {
     }))
   }
 
+  if (url.startsWith('/api/v1/teams/standings')) {
+    return Array.isArray(data) ? data : (data as TeamStandingEnvelope).standings
+  }
+
   if (url === '/api/v1/teams') {
     return Array.isArray(data) ? data : (data as TeamEnvelope).teams
   }
@@ -52,10 +57,11 @@ function normalizeResponse(url: string, data: unknown): unknown {
 export const endpoints = {
   games: (date: string) => `/api/v1/games?date=${encodeURIComponent(date)}`,
   teams: () => '/api/v1/teams',
+  standings: (season: string) => `/api/v1/teams/standings?season=${encodeURIComponent(season)}`,
   roster: (teamId: number) => `/api/v1/teams/${teamId}/players`,
   search: (name: string) => `/api/v1/players/search?name=${encodeURIComponent(name)}`,
   player: (playerId: number) => `/api/v1/players/${playerId}`,
   playerStats: (playerId: number, season: string) => `/api/v1/players/${playerId}/stats?season=${encodeURIComponent(season)}&group=hitting`,
 }
 
-export type { Game, Player, PlayerStats, Team, TeamPlayer }
+export type { Game, Player, PlayerStats, Team, TeamPlayer, TeamStanding }

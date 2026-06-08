@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.example.mlbanalysis.common.error.MlbApiException;
 import com.example.mlbanalysis.team.client.MlbTeamClient;
 import com.example.mlbanalysis.team.client.dto.MlbNamedResource;
+import com.example.mlbanalysis.team.client.dto.MlbStandingDivisionDto;
+import com.example.mlbanalysis.team.client.dto.MlbTeamStandingDto;
 import com.example.mlbanalysis.team.client.dto.MlbTeamDto;
 import com.example.mlbanalysis.team.dto.TeamListResponse;
 import java.util.List;
@@ -52,6 +54,75 @@ class TeamServiceTest {
                         "American League",
                         "American League West",
                         "Sutter Health Park",
+                        true
+                );
+    }
+
+    @Test
+    void mapsProviderStandingsIntoPublicDto() {
+        MlbTeamClient client = new MlbTeamClient() {
+            @Override
+            public List<MlbTeamDto> getTeams() {
+                return List.of();
+            }
+
+            @Override
+            public List<MlbStandingDivisionDto> getStandings(String season) {
+                return List.of(new MlbStandingDivisionDto(
+                        new MlbNamedResource(103, null),
+                        new MlbNamedResource(201, null),
+                        List.of(new MlbTeamStandingDto(
+                                new MlbNamedResource(139, "Rays"),
+                                "2026",
+                                "1",
+                                "2",
+                                62,
+                                "-",
+                                "1.0",
+                                null,
+                                37,
+                                25,
+                                42,
+                                ".597",
+                                true
+                        ))
+                ));
+            }
+        };
+
+        var response = new TeamService(client).getStandings("2026");
+
+        assertThat(response.season()).isEqualTo("2026");
+        assertThat(response.standings()).hasSize(1);
+        assertThat(response.standings().getFirst())
+                .extracting(
+                        "teamId",
+                        "teamName",
+                        "leagueName",
+                        "divisionName",
+                        "divisionRank",
+                        "leagueRank",
+                        "wins",
+                        "losses",
+                        "winningPercentage",
+                        "gamesBack",
+                        "wildCardGamesBack",
+                        "runDifferential",
+                        "divisionLeader"
+                )
+                .containsExactly(
+                        139,
+                        "Rays",
+                        "American League",
+                        "American League East",
+                        1,
+                        2,
+                        37,
+                        25,
+                        ".597",
+                        "-",
+                        "1.0",
+                        42,
                         true
                 );
     }
