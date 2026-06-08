@@ -63,8 +63,8 @@ public class PlayerService {
         if (stat == null) {
             return new PlayerStatsResponse(
                     playerId, season, group,
-                    null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null
+                    null, null, null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
             );
         }
         return new PlayerStatsResponse(
@@ -72,6 +72,7 @@ public class PlayerService {
                 season,
                 group,
                 stat.gamesPlayed(),
+                stat.plateAppearances(),
                 stat.atBats(),
                 stat.runs(),
                 stat.hits(),
@@ -80,12 +81,24 @@ public class PlayerService {
                 stat.homeRuns(),
                 stat.rbi(),
                 stat.baseOnBalls(),
+                stat.intentionalWalks(),
                 stat.strikeOuts(),
                 stat.avg(),
                 stat.obp(),
                 stat.slg(),
                 stat.ops(),
-                stat.stolenBases()
+                stat.stolenBases(),
+                stat.caughtStealing(),
+                stat.stolenBasePercentage(),
+                stat.totalBases(),
+                stat.hitByPitch(),
+                stat.groundIntoDoublePlay(),
+                stat.sacBunts(),
+                stat.sacFlies(),
+                stat.numberOfPitches(),
+                stat.babip(),
+                stat.groundOuts(),
+                stat.airOuts()
         );
     }
 

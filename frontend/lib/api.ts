@@ -1,4 +1,4 @@
-import type { Game, Player, Team, TeamPlayer } from './types'
+import type { Game, Player, PlayerStats, Team, TeamPlayer } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -55,6 +55,7 @@ export const endpoints = {
   roster: (teamId: number) => `/api/v1/teams/${teamId}/players`,
   search: (name: string) => `/api/v1/players/search?name=${encodeURIComponent(name)}`,
   player: (playerId: number) => `/api/v1/players/${playerId}`,
+  playerStats: (playerId: number, season: string) => `/api/v1/players/${playerId}/stats?season=${encodeURIComponent(season)}&group=hitting`,
 }
 
-export type { Game, Player, Team, TeamPlayer }
+export type { Game, Player, PlayerStats, Team, TeamPlayer }

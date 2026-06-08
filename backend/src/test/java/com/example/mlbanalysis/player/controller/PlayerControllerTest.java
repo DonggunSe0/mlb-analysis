@@ -77,8 +77,8 @@ class PlayerControllerTest {
     @Test
     void getPlayerStatsReturnsPublicResponse() throws Exception {
         when(playerService.getPlayerStats(545361, "2025", "hitting")).thenReturn(new PlayerStatsResponse(
-                545361, "2025", "hitting", 130, 456, 73, 106, 14, 1, 26, 64, 87, 178,
-                ".232", ".359", ".439", ".798", 2
+                545361, "2025", "hitting", 130, 567, 456, 73, 106, 14, 1, 26, 64, 87, 6, 178,
+                ".232", ".359", ".439", ".798", 2, 1, ".667", 200, 10, 9, 0, 4, 2450, ".301", 120, 150
         ));
 
         mockMvc.perform(get("/api/v1/players/545361/stats")
