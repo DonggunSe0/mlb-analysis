@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.mlbanalysis.auth.config.AuthProperties;
 import com.example.mlbanalysis.auth.dto.AuthRequest;
 import com.example.mlbanalysis.auth.dto.RegisterRequest;
 import com.example.mlbanalysis.auth.entity.AuthToken;
@@ -53,6 +54,22 @@ class AuthServiceTest {
         verify(userRepository).save(userCaptor.capture());
         assertThat(userCaptor.getValue().getPasswordHash()).doesNotContain("password123");
         assertThat(passwordHasher.matches("password123", userCaptor.getValue().getPasswordHash())).isTrue();
+    }
+
+    @Test
+    void usesConfiguredTokenShape() {
+        AuthProperties properties = new AuthProperties();
+        properties.setTokenTtl(java.time.Duration.ofHours(2));
+        properties.setTokenBytes(16);
+        AuthService service = new AuthService(userRepository, tokenRepository, passwordHasher, clock, properties);
+        when(userRepository.existsByEmail("fan@example.com")).thenReturn(false);
+        when(userRepository.save(any(AuthUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(tokenRepository.save(any(AuthToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.register(new RegisterRequest("fan@example.com", "Fan", "password123"));
+
+        assertThat(response.token()).hasSize(32);
+        assertThat(response.expiresAt()).isEqualTo(Instant.parse("2026-06-09T02:00:00Z"));
     }
 
     @Test

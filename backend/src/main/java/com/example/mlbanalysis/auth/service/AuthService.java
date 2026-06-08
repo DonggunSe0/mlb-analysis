@@ -1,5 +1,6 @@
 package com.example.mlbanalysis.auth.service;
 
+import com.example.mlbanalysis.auth.config.AuthProperties;
 import com.example.mlbanalysis.auth.dto.AuthRequest;
 import com.example.mlbanalysis.auth.dto.AuthResponse;
 import com.example.mlbanalysis.auth.dto.CurrentUserResponse;
@@ -10,10 +11,8 @@ import com.example.mlbanalysis.auth.repository.AuthTokenRepository;
 import com.example.mlbanalysis.auth.repository.AuthUserRepository;
 import java.security.SecureRandom;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,24 +21,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Profile("login")
 public class AuthService {
-    private static final Duration TOKEN_TTL = Duration.ofDays(7);
-    private static final int TOKEN_BYTES = 32;
     private final AuthUserRepository userRepository;
     private final AuthTokenRepository tokenRepository;
     private final PasswordHasher passwordHasher;
     private final Clock clock;
+    private final AuthProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Autowired
-    public AuthService(AuthUserRepository userRepository, AuthTokenRepository tokenRepository, PasswordHasher passwordHasher) {
-        this(userRepository, tokenRepository, passwordHasher, Clock.systemUTC());
-    }
-
-    AuthService(AuthUserRepository userRepository, AuthTokenRepository tokenRepository, PasswordHasher passwordHasher, Clock clock) {
+    public AuthService(AuthUserRepository userRepository, AuthTokenRepository tokenRepository, PasswordHasher passwordHasher, Clock clock, AuthProperties properties) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordHasher = passwordHasher;
         this.clock = clock;
+        this.properties = properties;
+    }
+
+    AuthService(AuthUserRepository userRepository, AuthTokenRepository tokenRepository, PasswordHasher passwordHasher, Clock clock) {
+        this(userRepository, tokenRepository, passwordHasher, clock, new AuthProperties());
     }
 
     @Transactional
@@ -73,7 +71,7 @@ public class AuthService {
 
     private AuthResponse issueToken(AuthUser user) {
         tokenRepository.deleteByExpiresAtBefore(clock.instant());
-        Instant expiresAt = clock.instant().plus(TOKEN_TTL);
+        Instant expiresAt = clock.instant().plus(properties.getTokenTtl());
         AuthToken token = tokenRepository.save(new AuthToken(generateToken(), user, expiresAt));
         return new AuthResponse(token.getToken(), expiresAt, toCurrentUser(user));
     }
@@ -102,7 +100,7 @@ public class AuthService {
     private CurrentUserResponse toCurrentUser(AuthUser user) { return new CurrentUserResponse(user.getId(), user.getEmail(), user.getDisplayName()); }
 
     private String generateToken() {
-        byte[] bytes = new byte[TOKEN_BYTES];
+        byte[] bytes = new byte[properties.getTokenBytes()];
         secureRandom.nextBytes(bytes);
         return HexFormat.of().formatHex(bytes);
     }
