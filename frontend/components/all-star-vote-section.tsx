@@ -4,6 +4,7 @@ import useSWR from "swr"
 import { useMemo, useState } from "react"
 import {
   endpoints,
+  AUTH_TOKEN_KEY,
   fetchAllStarStatus,
   login,
   register,
@@ -32,11 +33,9 @@ const POSITIONS = [
   { key: "DH", label: "지명타자", x: "50%", y: "62%" },
 ]
 
-const TOKEN_KEY = "mlb-analysis-auth-token"
-
 export function AllStarVoteSection() {
   const [token, setToken] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY),
+    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
   )
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
   const [authError, setAuthError] = useState<string | null>(null)
@@ -70,7 +69,7 @@ export function AllStarVoteSection() {
       const response: AuthResponse = authMode === "login"
         ? await login(email, password)
         : await register(email, displayName || email.split("@")[0], password)
-      localStorage.setItem(TOKEN_KEY, response.token)
+      localStorage.setItem(AUTH_TOKEN_KEY, response.token)
       setToken(response.token)
       setPassword("")
     } catch (error) {
@@ -79,7 +78,7 @@ export function AllStarVoteSection() {
   }
 
   function logout() {
-    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(AUTH_TOKEN_KEY)
     setToken(null)
     setSelections({})
   }

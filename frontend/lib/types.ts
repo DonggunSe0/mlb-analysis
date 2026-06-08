@@ -152,3 +152,10 @@ export type AllStarVoteStatus = {
   voteDate: string
   ballot: AllStarBallot | null
 }
+
+export type GamePick = {
+  gamePk: number
+  pickedTeamId: number
+  pickedTeamName: string
+  createdAt: string
+}

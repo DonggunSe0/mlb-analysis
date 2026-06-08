@@ -5,6 +5,7 @@ import type {
   AuthResponse,
   CurrentUser,
   Game,
+  GamePick,
   NewsItem,
   Player,
   PlayerStats,
@@ -28,6 +29,8 @@ type TeamStandingEnvelope = { standings: TeamStanding[] }
 type RosterEnvelope = { players: TeamPlayer[] }
 type PlayerSearchEnvelope = { players: Player[] }
 type NewsEnvelope = { news: NewsItem[] }
+
+export const AUTH_TOKEN_KEY = 'mlb-analysis-auth-token'
 
 export async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -82,6 +85,8 @@ export const endpoints = {
   authMe: () => '/api/v1/auth/me',
   allStarStatus: () => '/api/v1/all-star/votes/me',
   allStarVotes: () => '/api/v1/all-star/votes',
+  gamePick: (gamePk: number) => `/api/v1/games/${gamePk}/pick`,
+  myGamePicks: () => '/api/v1/games/picks/me',
 }
 
 export function login(email: string, password: string) {
@@ -113,6 +118,17 @@ export function submitAllStarVote(token: string, selections: AllStarSelection[])
   }, token)
 }
 
+export function fetchGamePick(token: string, gamePk: number) {
+  return apiRequest<GamePick | undefined>(endpoints.gamePick(gamePk), {}, token)
+}
+
+export function submitGamePick(token: string, gamePk: number, pickedTeamId: number, pickedTeamName: string) {
+  return apiRequest<GamePick>(endpoints.gamePick(gamePk), {
+    method: 'POST',
+    body: JSON.stringify({ pickedTeamId, pickedTeamName }),
+  }, token)
+}
+
 export type {
   AllStarBallot,
   AllStarSelection,
@@ -120,6 +136,7 @@ export type {
   AuthResponse,
   CurrentUser,
   Game,
+  GamePick,
   NewsItem,
   Player,
   PlayerStats,

@@ -1,12 +1,21 @@
 "use client"
 
 import useSWR from "swr"
-import { useMemo } from "react"
-import { fetcher, endpoints, type Game } from "@/lib/api"
+import { useMemo, useState } from "react"
+import {
+  AUTH_TOKEN_KEY,
+  endpoints,
+  fetcher,
+  fetchGamePick,
+  submitGamePick,
+  type Game,
+  type GamePick,
+} from "@/lib/api"
 import { StatusBadge, getStatusInfo } from "@/components/status-badge"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { TeamLogo } from "@/components/media"
 import { cn } from "@/lib/utils"
+import { CheckCircle2, Lock } from "lucide-react"
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -168,7 +177,89 @@ function GameCard({ game }: { game: Game }) {
         <TeamRow name={game.awayTeam} teamId={game.awayTeamId} score={game.awayScore} win={awayWin} suffix="원정" />
         <TeamRow name={game.homeTeam} teamId={game.homeTeamId} score={game.homeScore} win={homeWin} suffix="홈" />
       </div>
+      <GamePickControls game={game} />
     </article>
+  )
+}
+
+function GamePickControls({ game }: { game: Game }) {
+  const [token] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
+  )
+  const [message, setMessage] = useState<string | null>(null)
+  const { data: pick, mutate, isLoading } = useSWR<GamePick | undefined>(
+    token ? ["game-pick", game.gamePk, token] : null,
+    () => fetchGamePick(token!, game.gamePk),
+    { revalidateOnFocus: false },
+  )
+
+  async function choose(teamId: number | null, teamName: string | null) {
+    if (!token || !teamId || !teamName) return
+    setMessage(null)
+    try {
+      const saved = await submitGamePick(token, game.gamePk, teamId, teamName)
+      await mutate(saved, { revalidate: false })
+      setMessage(`${teamName} 픽이 저장됐습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "픽 저장에 실패했습니다.")
+    }
+  }
+
+  if (!token) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Lock className="size-3.5" aria-hidden="true" />
+          올스타 투표에서 로그인하면 경기 승자 픽을 남길 수 있습니다.
+        </span>
+      </div>
+    )
+  }
+
+  const options = [
+    { id: game.awayTeamId, name: game.awayTeam, label: "원정" },
+    { id: game.homeTeamId, name: game.homeTeam, label: "홈" },
+  ]
+
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-muted-foreground">승리팀 픽</p>
+        {pick && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+            선택됨
+          </span>
+        )}
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {options.map((option) => {
+          const selected = pick?.pickedTeamId === option.id
+          return (
+            <button
+              key={option.label}
+              type="button"
+              disabled={!option.id || !option.name || isLoading}
+              onClick={() => choose(option.id, option.name)}
+              className={cn(
+                "min-h-10 rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50",
+                selected
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-secondary text-secondary-foreground hover:bg-accent",
+              )}
+            >
+              <span className="block text-[10px] text-muted-foreground">{option.label}</span>
+              <span className="block truncate">{option.name ?? "미정"}</span>
+            </button>
+          )
+        })}
+      </div>
+      {(message || pick) && (
+        <p className="mt-2 truncate text-xs text-muted-foreground">
+          {message ?? `${pick?.pickedTeamName} 선택 중`}
+        </p>
+      )}
+    </div>
   )
 }
 
