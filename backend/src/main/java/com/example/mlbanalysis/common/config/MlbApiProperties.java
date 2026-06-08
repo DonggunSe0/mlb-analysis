@@ -10,6 +10,8 @@ public class MlbApiProperties {
     private int sportId = 1;
     private Duration connectTimeout = Duration.ofSeconds(2);
     private Duration readTimeout = Duration.ofSeconds(5);
+    private String clientName = "mlb-analysis";
+    private String contactEmail = "";
 
     public String getBaseUrl() {
         return baseUrl;
@@ -41,5 +43,28 @@ public class MlbApiProperties {
 
     public void setReadTimeout(Duration readTimeout) {
         this.readTimeout = readTimeout;
+    }
+
+    public String getClientName() {
+        return clientName;
+    }
+
+    public void setClientName(String clientName) {
+        this.clientName = clientName == null || clientName.isBlank() ? "mlb-analysis" : clientName.trim();
+    }
+
+    public String getContactEmail() {
+        return contactEmail;
+    }
+
+    public void setContactEmail(String contactEmail) {
+        this.contactEmail = contactEmail == null ? "" : contactEmail.trim();
+    }
+
+    public String userAgent() {
+        if (contactEmail.isBlank()) {
+            return clientName;
+        }
+        return clientName + " (" + contactEmail + ")";
     }
 }
