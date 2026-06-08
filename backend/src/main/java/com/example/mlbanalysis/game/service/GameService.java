@@ -6,6 +6,7 @@ import com.example.mlbanalysis.game.client.dto.MlbGameTeamSideDto;
 import com.example.mlbanalysis.game.dto.GameListResponse;
 import com.example.mlbanalysis.game.dto.GameResponse;
 import java.time.LocalDate;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,6 +18,7 @@ public class GameService {
         this.mlbGameClient = mlbGameClient;
     }
 
+    @Cacheable(value = "mlbGames", key = "#date")
     public GameListResponse getGames(LocalDate date) {
         return new GameListResponse(mlbGameClient.getGames(date).stream()
                 .map(this::toGameResponse)

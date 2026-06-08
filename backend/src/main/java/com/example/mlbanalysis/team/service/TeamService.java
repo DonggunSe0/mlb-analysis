@@ -6,6 +6,7 @@ import com.example.mlbanalysis.team.client.dto.MlbTeamDto;
 import com.example.mlbanalysis.team.dto.TeamListResponse;
 import com.example.mlbanalysis.team.dto.TeamResponse;
 import java.util.List;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,6 +18,7 @@ public class TeamService {
         this.mlbTeamClient = mlbTeamClient;
     }
 
+    @Cacheable("mlbTeams")
     public TeamListResponse getTeams() {
         List<TeamResponse> teams = mlbTeamClient.getTeams().stream()
                 .map(this::toTeamResponse)
