@@ -50,7 +50,7 @@ class UserPreferenceControllerTest {
         mockMvc.perform(put("/api/v1/users/me/preferences")
                         .header("Authorization", "Bearer token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"favoriteTeamId\":147,\"favoriteTeamName\":\"New York Yankees\"}"))
+                        .content("{\"favoriteTeamId\":147}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.favoriteTeamId").value(147))
                 .andExpect(jsonPath("$.favoriteTeamName").value("New York Yankees"));

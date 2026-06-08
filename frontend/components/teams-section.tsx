@@ -63,7 +63,7 @@ export function TeamsSection() {
 
   async function setFavoriteTeam(team: Team) {
     if (!token) return
-    await mutatePreferences(updatePreferences(token, team.id, team.name), { revalidate: false })
+    await mutatePreferences(updatePreferences(token, team.id), { revalidate: false })
   }
 
   return (
