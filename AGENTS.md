@@ -373,6 +373,11 @@ Do not manually duplicate hook-owned activation state unless recovering from mis
 
 ---
 
+
+## Project-local YOLO Night override
+
+When the user explicitly asks for overnight/yolo/autonomous high-throughput work (for example: `yolo`, `밤새 작업`, `컴퓨터 켜놓고 잘거야`, `토큰 많이 써도 돼`, or `나한테 물어보지 말고 최대한 해`), load and follow `.codex/skills/yolo-night/SKILL.md` if present. This is a project-local personal-repo mode: proceed aggressively on safe repo-local edit/test/commit/PR work, but keep the hard stops from that skill and the higher-priority system/developer safety rules.
+
 ## Setup
 
 Execute `omx setup` to install all components. Execute `omx doctor` to verify installation.
