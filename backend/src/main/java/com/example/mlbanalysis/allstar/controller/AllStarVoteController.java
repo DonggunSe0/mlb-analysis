@@ -2,6 +2,7 @@ package com.example.mlbanalysis.allstar.controller;
 
 import com.example.mlbanalysis.allstar.dto.AllStarBallotRequest;
 import com.example.mlbanalysis.allstar.dto.AllStarBallotResponse;
+import com.example.mlbanalysis.allstar.dto.AllStarVoteResultsResponse;
 import com.example.mlbanalysis.allstar.dto.AllStarVoteStatusResponse;
 import com.example.mlbanalysis.allstar.service.AllStarVoteService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +31,12 @@ public class AllStarVoteController {
     @GetMapping("/me")
     public AllStarVoteStatusResponse status(@RequestHeader(name = "Authorization", required = false) String authorizationHeader) {
         return allStarVoteService.status(authorizationHeader);
+    }
+
+    @Operation(summary = "Return public All-Star voting results for today")
+    @GetMapping("/results")
+    public AllStarVoteResultsResponse results() {
+        return allStarVoteService.publicResults();
     }
 
     @Operation(summary = "Submit today's All-Star ballot for the logged-in user")
