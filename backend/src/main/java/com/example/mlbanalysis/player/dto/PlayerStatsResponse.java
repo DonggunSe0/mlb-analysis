@@ -5,6 +5,7 @@ public record PlayerStatsResponse(
         String season,
         String group,
         Integer gamesPlayed,
+        Integer plateAppearances,
         Integer atBats,
         Integer runs,
         Integer hits,
@@ -13,11 +14,23 @@ public record PlayerStatsResponse(
         Integer homeRuns,
         Integer rbi,
         Integer baseOnBalls,
+        Integer intentionalWalks,
         Integer strikeOuts,
         String avg,
         String obp,
         String slg,
         String ops,
-        Integer stolenBases
+        Integer stolenBases,
+        Integer caughtStealing,
+        String stolenBasePercentage,
+        Integer totalBases,
+        Integer hitByPitch,
+        Integer groundIntoDoublePlay,
+        Integer sacBunts,
+        Integer sacFlies,
+        Integer numberOfPitches,
+        String babip,
+        Integer groundOuts,
+        Integer airOuts
 ) {
 }

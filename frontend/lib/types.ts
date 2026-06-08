@@ -37,4 +37,39 @@ export type Player = {
   primaryPosition: string | null
   batSide: string | null
   pitchHand: string | null
+  headshotUrl?: string | null
+}
+
+export type PlayerStats = {
+  playerId: number
+  season: string
+  group: string
+  gamesPlayed: number | null
+  plateAppearances: number | null
+  atBats: number | null
+  runs: number | null
+  hits: number | null
+  doubles: number | null
+  triples: number | null
+  homeRuns: number | null
+  rbi: number | null
+  baseOnBalls: number | null
+  intentionalWalks: number | null
+  strikeOuts: number | null
+  avg: string | null
+  obp: string | null
+  slg: string | null
+  ops: string | null
+  stolenBases: number | null
+  caughtStealing: number | null
+  stolenBasePercentage: string | null
+  totalBases: number | null
+  hitByPitch: number | null
+  groundIntoDoublePlay: number | null
+  sacBunts: number | null
+  sacFlies: number | null
+  numberOfPitches: number | null
+  babip: string | null
+  groundOuts: number | null
+  airOuts: number | null
 }

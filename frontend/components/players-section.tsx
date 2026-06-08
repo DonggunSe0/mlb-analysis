@@ -2,11 +2,11 @@
 
 import useSWR from "swr"
 import { useState } from "react"
-import { fetcher, endpoints, type Player } from "@/lib/api"
+import { fetcher, endpoints, type Player, type PlayerStats } from "@/lib/api"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { PlayerAvatar } from "@/components/media"
 import { cn } from "@/lib/utils"
-import { Search } from "lucide-react"
+import { BarChart3, Search, TrendingUp } from "lucide-react"
 
 export function PlayersSection() {
   const [input, setInput] = useState("")
@@ -135,7 +135,16 @@ function PlayerDetailPanel({ playerId }: { playerId: number | null }) {
 }
 
 function PlayerDetail({ playerId }: { playerId: number }) {
+  const currentSeason = String(new Date().getFullYear())
   const { data, error, isLoading, mutate } = useSWR<Player>(endpoints.player(playerId), fetcher, {
+    revalidateOnFocus: false,
+  })
+  const {
+    data: stats,
+    error: statsError,
+    isLoading: statsLoading,
+    mutate: mutateStats,
+  } = useSWR<PlayerStats>(endpoints.playerStats(playerId, currentSeason), fetcher, {
     revalidateOnFocus: false,
   })
 
@@ -166,8 +175,9 @@ function PlayerDetail({ playerId }: { playerId: number }) {
     <article className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center gap-4 border-b border-border bg-secondary/40 p-6">
         <PlayerAvatar playerId={data.id} name={data.fullName} size={240} className="size-16 shrink-0 text-lg" />
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">{data.fullName}</h2>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Player profile</p>
+          <h2 className="truncate text-xl font-bold tracking-tight text-foreground">{data.fullName}</h2>
           <p className="mt-0.5 font-mono text-xs text-muted-foreground">ID #{data.id}</p>
         </div>
       </div>
@@ -179,6 +189,138 @@ function PlayerDetail({ playerId }: { playerId: number }) {
           </div>
         ))}
       </dl>
+      <SeasonHittingStats
+        season={currentSeason}
+        stats={stats}
+        isLoading={statsLoading}
+        hasError={Boolean(statsError)}
+        onRetry={() => mutateStats()}
+      />
     </article>
   )
+}
+
+function SeasonHittingStats({
+  season,
+  stats,
+  isLoading,
+  hasError,
+  onRetry,
+}: {
+  season: string
+  stats: PlayerStats | undefined
+  isLoading: boolean
+  hasError: boolean
+  onRetry: () => void
+}) {
+  const hasStats = Boolean(stats && (stats.gamesPlayed != null || stats.atBats != null || stats.ops != null))
+
+  return (
+    <section aria-labelledby="player-stats-heading" className="border-t border-border p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+            <BarChart3 className="size-4" aria-hidden="true" />
+            Season hitting
+          </p>
+          <h3 id="player-stats-heading" className="mt-1 text-lg font-bold text-foreground">
+            {season} 현재 타격 기록
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">MLB Stats API의 시즌 hitting 기록 기준입니다.</p>
+        </div>
+        {hasStats && (
+          <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            G {formatStat(stats?.gamesPlayed)} · PA {formatStat(stats?.plateAppearances)}
+          </span>
+        )}
+      </div>
+
+      {isLoading && <LoadingState label="현재 시즌 타격 기록을 불러오는 중..." className="py-8" />}
+      {hasError && (
+        <ErrorState
+          message="선수 성적을 불러오지 못했습니다. 백엔드 서버 또는 MLB API 상태를 확인해 주세요."
+          onRetry={onRetry}
+          className="mt-4 py-8"
+        />
+      )}
+      {!isLoading && !hasError && !hasStats && (
+        <EmptyState message="현재 시즌에 표시할 타격 기록이 없습니다." className="py-8" />
+      )}
+      {!isLoading && !hasError && hasStats && stats && <HittingStatsTable stats={stats} />}
+    </section>
+  )
+}
+
+function HittingStatsTable({ stats }: { stats: PlayerStats }) {
+  const headline = [
+    { label: "AVG", value: stats.avg, hint: "타율" },
+    { label: "OPS", value: stats.ops, hint: "출루율+장타율" },
+    { label: "HR", value: stats.homeRuns, hint: "홈런" },
+    { label: "RBI", value: stats.rbi, hint: "타점" },
+  ]
+  const rows = [
+    ["경기", stats.gamesPlayed],
+    ["타석", stats.plateAppearances],
+    ["타수", stats.atBats],
+    ["득점", stats.runs],
+    ["안타", stats.hits],
+    ["2루타", stats.doubles],
+    ["3루타", stats.triples],
+    ["홈런", stats.homeRuns],
+    ["타점", stats.rbi],
+    ["볼넷", stats.baseOnBalls],
+    ["고의4구", stats.intentionalWalks],
+    ["삼진", stats.strikeOuts],
+    ["출루율", stats.obp],
+    ["장타율", stats.slg],
+    ["OPS", stats.ops],
+    ["총루타", stats.totalBases],
+    ["도루", stats.stolenBases],
+    ["도루 실패", stats.caughtStealing],
+    ["도루 성공률", stats.stolenBasePercentage],
+    ["사구", stats.hitByPitch],
+    ["병살타", stats.groundIntoDoublePlay],
+    ["희생번트", stats.sacBunts],
+    ["희생플라이", stats.sacFlies],
+    ["투구 수", stats.numberOfPitches],
+    ["BABIP", stats.babip],
+    ["땅볼 아웃", stats.groundOuts],
+    ["뜬공 아웃", stats.airOuts],
+  ] as const
+
+  return (
+    <div className="mt-5 space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {headline.map((item) => (
+          <div key={item.label} className="rounded-xl border border-border bg-secondary/50 p-4">
+            <dt className="text-xs font-semibold text-muted-foreground">{item.label}</dt>
+            <dd className="mt-1 flex items-baseline gap-1 text-2xl font-black tracking-tight text-foreground">
+              {formatStat(item.value)}
+            </dd>
+            <p className="mt-1 text-[11px] text-muted-foreground">{item.hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-border">
+        <div className="flex items-center gap-2 border-b border-border bg-secondary/40 px-4 py-3 text-sm font-semibold text-foreground">
+          <TrendingUp className="size-4 text-primary" aria-hidden="true" />
+          주요 타격 성적 전체 보기
+        </div>
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3">
+          {rows.map(([label, value]) => (
+            <div key={label} className="bg-card px-4 py-3">
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="mt-1 font-mono text-sm font-semibold text-foreground">{formatStat(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  )
+}
+
+function formatStat(value: number | string | null | undefined) {
+  if (value == null || value === "") return "-"
+  return String(value)
 }

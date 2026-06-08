@@ -79,8 +79,8 @@ class PlayerServiceTest {
             @Override
             public MlbPlayerSeasonStatDto getPlayerStats(Integer playerId, String season, String group) {
                 return new MlbPlayerSeasonStatDto(
-                        130, 456, 73, 106, 14, 1, 26, 64, 87, 178,
-                        ".232", ".359", ".439", ".798", 2
+                        130, 567, 456, 73, 106, 14, 1, 26, 64, 87, 6, 178,
+                        ".232", ".359", ".439", ".798", 2, 1, ".667", 200, 10, 9, 0, 4, 2450, ".301", 120, 150
                 );
             }
         });

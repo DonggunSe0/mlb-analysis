@@ -88,6 +88,7 @@ class StatsApiMlbPlayerClientTest {
                             "season": "2025",
                             "stat": {
                               "gamesPlayed": 130,
+                              "plateAppearances": 567,
                               "atBats": 456,
                               "runs": 73,
                               "hits": 106,
@@ -96,12 +97,24 @@ class StatsApiMlbPlayerClientTest {
                               "homeRuns": 26,
                               "rbi": 64,
                               "baseOnBalls": 87,
+                              "intentionalWalks": 6,
                               "strikeOuts": 178,
                               "avg": ".232",
                               "obp": ".359",
                               "slg": ".439",
                               "ops": ".798",
-                              "stolenBases": 2
+                              "stolenBases": 2,
+                              "caughtStealing": 1,
+                              "stolenBasePercentage": ".667",
+                              "totalBases": 200,
+                              "hitByPitch": 10,
+                              "groundIntoDoublePlay": 9,
+                              "sacBunts": 0,
+                              "sacFlies": 4,
+                              "numberOfPitches": 2450,
+                              "babip": ".301",
+                              "groundOuts": 120,
+                              "airOuts": 150
                             }
                           } ]
                         } ] }
