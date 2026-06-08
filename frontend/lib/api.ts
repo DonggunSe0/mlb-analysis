@@ -127,10 +127,10 @@ export function fetchGamePick(token: string, gamePk: number) {
   return apiRequest<GamePick | undefined>(endpoints.gamePick(gamePk), {}, token)
 }
 
-export function submitGamePick(token: string, gamePk: number, pickedTeamId: number, pickedTeamName: string) {
+export function submitGamePick(token: string, gamePk: number, gameDate: string, pickedTeamId: number) {
   return apiRequest<GamePick>(endpoints.gamePick(gamePk), {
     method: 'POST',
-    body: JSON.stringify({ pickedTeamId, pickedTeamName }),
+    body: JSON.stringify({ gameDate, pickedTeamId }),
   }, token)
 }
 
@@ -147,10 +147,10 @@ export function fetchPreferences(token: string) {
   return apiRequest<UserPreference>(endpoints.preferences(), {}, token)
 }
 
-export function updatePreferences(token: string, favoriteTeamId: number, favoriteTeamName: string) {
+export function updatePreferences(token: string, favoriteTeamId: number) {
   return apiRequest<UserPreference>(endpoints.preferences(), {
     method: 'PUT',
-    body: JSON.stringify({ favoriteTeamId, favoriteTeamName }),
+    body: JSON.stringify({ favoriteTeamId }),
   }, token)
 }
 

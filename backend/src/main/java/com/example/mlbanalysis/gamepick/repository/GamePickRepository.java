@@ -14,12 +14,12 @@ public interface GamePickRepository extends JpaRepository<GamePick, Long> {
 
     @Query("""
             select pick.pickedTeamId as pickedTeamId,
-                   pick.pickedTeamName as pickedTeamName,
+                   min(pick.pickedTeamName) as pickedTeamName,
                    count(pick.id) as pickCount
             from GamePick pick
             where pick.gamePk = :gamePk
-            group by pick.pickedTeamId, pick.pickedTeamName
-            order by count(pick.id) desc, pick.pickedTeamName asc
+            group by pick.pickedTeamId
+            order by count(pick.id) desc, min(pick.pickedTeamName) asc
             """)
     List<GamePickSummaryRow> summarizeByGamePk(@Param("gamePk") Long gamePk);
 }

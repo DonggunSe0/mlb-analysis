@@ -58,7 +58,7 @@ class GamePickControllerTest {
         mockMvc.perform(post("/api/v1/games/778899/pick")
                         .header("Authorization", "Bearer token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"pickedTeamId\":147,\"pickedTeamName\":\"New York Yankees\"}"))
+                        .content("{\"gameDate\":\"2026-06-09\",\"pickedTeamId\":147}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pickedTeamId").value(147))
                 .andExpect(jsonPath("$.pickedTeamName").value("New York Yankees"));

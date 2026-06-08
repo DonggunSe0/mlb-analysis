@@ -7,7 +7,6 @@ import {
   endpoints,
   fetcher,
   fetchPreferences,
-  fetchGamePick,
   fetchGamePickSummary,
   fetchMyGamePicks,
   submitGamePick,
@@ -39,8 +38,14 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
     () => fetchPreferences(token!),
     { revalidateOnFocus: false },
   )
+  const { data: myPicks, mutate: mutateMyPicks } = useSWR<GamePick[]>(
+    token ? ["my-game-picks", token] : null,
+    () => fetchMyGamePicks(token!),
+    { revalidateOnFocus: false },
+  )
 
   const games = useMemo(() => data ?? [], [data])
+  const picksByGame = useMemo(() => new Map((myPicks ?? []).map((pick) => [pick.gamePk, pick])), [myPicks])
 
   const stats = useMemo(() => {
     const totalRuns = games.reduce((sum, g) => sum + (g.homeScore ?? 0) + (g.awayScore ?? 0), 0)
@@ -56,6 +61,14 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
     const d = new Date(date + "T00:00:00")
     return d.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })
   }, [date])
+
+  function handlePickSaved(saved: GamePick) {
+    mutateMyPicks(
+      (current) => [saved, ...(current ?? []).filter((pick) => pick.gamePk !== saved.gamePk)],
+      { revalidate: false },
+    )
+    setPickVersion((value) => value + 1)
+  }
 
   return (
     <section aria-labelledby="games-heading" className="space-y-6">
@@ -114,6 +127,7 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
           token={token}
           favoriteTeamId={preferences?.favoriteTeamId ?? null}
           favoriteTeamName={preferences?.favoriteTeamName ?? null}
+          myPicks={myPicks ?? []}
           pickVersion={pickVersion}
         />
       )}
@@ -135,8 +149,10 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
             <GameCard
               key={g.gamePk}
               game={g}
+              gameDate={date}
               favoriteTeamId={preferences?.favoriteTeamId ?? null}
-              onPickSaved={() => setPickVersion((value) => value + 1)}
+              pick={picksByGame.get(g.gamePk)}
+              onPickSaved={handlePickSaved}
             />
           ))}
         </div>
@@ -194,27 +210,17 @@ function PickCenter({
   token,
   favoriteTeamId,
   favoriteTeamName,
+  myPicks,
   pickVersion,
 }: {
   games: Game[]
   token: string | null
   favoriteTeamId: number | null
   favoriteTeamName: string | null
+  myPicks: GamePick[]
   pickVersion: number
 }) {
-  const { data: myPicks } = useSWR<GamePick[]>(
-    token ? ["my-game-picks", token, pickVersion] : null,
-    () => fetchMyGamePicks(token!),
-    { revalidateOnFocus: false },
-  )
-  const { data: summaries } = useSWR<GamePickSummary[]>(
-    games.length > 0 ? ["game-pick-summaries", games.map((game) => game.gamePk).join(","), pickVersion] : null,
-    () => Promise.all(games.map((game) => fetchGamePickSummary(game.gamePk))),
-    { revalidateOnFocus: false },
-  )
-
-  const picksByGame = useMemo(() => new Map((myPicks ?? []).map((pick) => [pick.gamePk, pick])), [myPicks])
-  const summariesByGame = useMemo(() => new Map((summaries ?? []).map((summary) => [summary.gamePk, summary])), [summaries])
+  const picksByGame = useMemo(() => new Map(myPicks.map((pick) => [pick.gamePk, pick])), [myPicks])
   const pickedGames = games.filter((game) => picksByGame.has(game.gamePk))
   const pendingCount = pickedGames.filter((game) => getStatusInfo(game.status).tone !== "final").length
   const successCount = pickedGames.filter((game) => {
@@ -225,6 +231,13 @@ function PickCenter({
     ? games.filter((game) => game.homeTeamId === favoriteTeamId || game.awayTeamId === favoriteTeamId)
     : []
   const featuredGames = pickedGames.length > 0 ? pickedGames.slice(0, 3) : games.slice(0, 3)
+  const summaryKey = featuredGames.map((game) => game.gamePk).join(",")
+  const { data: summaries } = useSWR<GamePickSummary[]>(
+    featuredGames.length > 0 ? ["game-pick-summaries", summaryKey, pickVersion] : null,
+    () => Promise.all(featuredGames.map((game) => fetchGamePickSummary(game.gamePk))),
+    { revalidateOnFocus: false },
+  )
+  const summariesByGame = useMemo(() => new Map((summaries ?? []).map((summary) => [summary.gamePk, summary])), [summaries])
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
@@ -313,7 +326,7 @@ function PickCenter({
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         {featuredGames.map((game) => {
           const summary = summariesByGame.get(game.gamePk)
-          const leader = summary?.teams.find((team) => team.leading) ?? summary?.teams[0]
+          const leader = summary?.teams.find((team) => team.leading)
           return (
             <div key={game.gamePk} className="rounded-lg border border-border bg-secondary/40 p-3">
               <div className="flex items-center gap-2 text-xs font-bold text-foreground">
@@ -324,6 +337,10 @@ function PickCenter({
               {leader && summary && summary.totalPicks > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {leader.pickedTeamName} 쪽으로 {leader.pickCount}명이 응원 중
+                </p>
+              ) : summary && summary.totalPicks > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  응원이 팽팽합니다. {summary.totalPicks}명이 함께 응원 중
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">아직 응원 선택이 없습니다.</p>
@@ -338,12 +355,16 @@ function PickCenter({
 
 function GameCard({
   game,
+  gameDate,
   favoriteTeamId,
+  pick,
   onPickSaved,
 }: {
   game: Game
+  gameDate: string
   favoriteTeamId: number | null
-  onPickSaved: () => void
+  pick: GamePick | undefined
+  onPickSaved: (pick: GamePick) => void
 }) {
   const { tone } = getStatusInfo(game.status)
   const isFinal = tone === "final"
@@ -372,32 +393,40 @@ function GameCard({
         <TeamRow name={game.awayTeam} teamId={game.awayTeamId} score={game.awayScore} win={awayWin} suffix="원정" />
         <TeamRow name={game.homeTeam} teamId={game.homeTeamId} score={game.homeScore} win={homeWin} suffix="홈" />
       </div>
-      <GamePickControls game={game} onPickSaved={onPickSaved} />
+      <GamePickControls game={game} gameDate={gameDate} pick={pick} onPickSaved={onPickSaved} />
     </article>
   )
 }
 
-function GamePickControls({ game, onPickSaved }: { game: Game; onPickSaved: () => void }) {
+function GamePickControls({
+  game,
+  gameDate,
+  pick,
+  onPickSaved,
+}: {
+  game: Game
+  gameDate: string
+  pick: GamePick | undefined
+  onPickSaved: (pick: GamePick) => void
+}) {
   const [token] = useState<string | null>(() =>
     typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
   )
   const [message, setMessage] = useState<string | null>(null)
-  const { data: pick, mutate, isLoading } = useSWR<GamePick | undefined>(
-    token ? ["game-pick", game.gamePk, token] : null,
-    () => fetchGamePick(token!, game.gamePk),
-    { revalidateOnFocus: false },
-  )
+  const [isSaving, setIsSaving] = useState(false)
 
   async function choose(teamId: number | null, teamName: string | null) {
     if (!token || !teamId || !teamName) return
     setMessage(null)
+    setIsSaving(true)
     try {
-      const saved = await submitGamePick(token, game.gamePk, teamId, teamName)
-      await mutate(saved, { revalidate: false })
-      onPickSaved()
-      setMessage(`${teamName} 응원팀이 저장됐습니다.`)
+      const saved = await submitGamePick(token, game.gamePk, gameDate, teamId)
+      onPickSaved(saved)
+      setMessage(`${saved.pickedTeamName} 응원팀이 저장됐습니다.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "응원팀 저장에 실패했습니다.")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -435,7 +464,7 @@ function GamePickControls({ game, onPickSaved }: { game: Game; onPickSaved: () =
             <button
               key={option.label}
               type="button"
-              disabled={!option.id || !option.name || isLoading}
+              disabled={!option.id || !option.name || isSaving}
               onClick={() => choose(option.id, option.name)}
               className={cn(
                 "min-h-10 rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50",

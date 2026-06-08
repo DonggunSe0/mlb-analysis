@@ -6,6 +6,10 @@ import static org.mockito.Mockito.when;
 
 import com.example.mlbanalysis.auth.entity.AuthUser;
 import com.example.mlbanalysis.auth.service.AuthService;
+import com.example.mlbanalysis.auth.service.AuthException;
+import com.example.mlbanalysis.team.dto.TeamListResponse;
+import com.example.mlbanalysis.team.dto.TeamResponse;
+import com.example.mlbanalysis.team.service.TeamService;
 import com.example.mlbanalysis.user.dto.UserPreferenceRequest;
 import com.example.mlbanalysis.user.entity.UserPreference;
 import com.example.mlbanalysis.user.repository.UserPreferenceRepository;
@@ -24,11 +28,14 @@ class UserPreferenceServiceTest {
     @Mock
     private AuthService authService;
 
+    @Mock
+    private TeamService teamService;
+
     private UserPreferenceService userPreferenceService;
 
     @BeforeEach
     void setUp() {
-        userPreferenceService = new UserPreferenceService(preferenceRepository, authService);
+        userPreferenceService = new UserPreferenceService(preferenceRepository, authService, teamService);
     }
 
     @Test
@@ -61,11 +68,30 @@ class UserPreferenceServiceTest {
         AuthUser user = new AuthUser("fan@example.com", "Fan", "hash");
         when(authService.requireUser("Bearer token")).thenReturn(user);
         when(preferenceRepository.findByUser(user)).thenReturn(Optional.empty());
+        when(teamService.getTeams()).thenReturn(new TeamListResponse(java.util.List.of(
+                team(147, "New York Yankees")
+        )));
         when(preferenceRepository.save(any(UserPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = userPreferenceService.update("Bearer token", new UserPreferenceRequest(147L, "New York Yankees"));
+        var response = userPreferenceService.update("Bearer token", new UserPreferenceRequest(147L));
 
         assertThat(response.favoriteTeamId()).isEqualTo(147L);
         assertThat(response.favoriteTeamName()).isEqualTo("New York Yankees");
+    }
+
+    @Test
+    void updateRejectsUnknownTeamId() {
+        AuthUser user = new AuthUser("fan@example.com", "Fan", "hash");
+        when(authService.requireUser("Bearer token")).thenReturn(user);
+        when(teamService.getTeams()).thenReturn(new TeamListResponse(java.util.List.of(team(147, "New York Yankees"))));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        userPreferenceService.update("Bearer token", new UserPreferenceRequest(999L)))
+                .isInstanceOf(AuthException.class)
+                .hasMessage("Selected team is not available.");
+    }
+
+    private TeamResponse team(int id, String name) {
+        return new TeamResponse(id, name, null, null, null, null, null, null, true);
     }
 }
