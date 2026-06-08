@@ -2,7 +2,17 @@
 
 import useSWR from "swr"
 import { useMemo, useState } from "react"
-import { fetcher, endpoints, type Team, type TeamPlayer, type TeamStanding } from "@/lib/api"
+import {
+  AUTH_TOKEN_KEY,
+  endpoints,
+  fetcher,
+  fetchPreferences,
+  updatePreferences,
+  type Team,
+  type TeamPlayer,
+  type TeamStanding,
+  type UserPreference,
+} from "@/lib/api"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { TeamLogo } from "@/components/media"
 import { cn } from "@/lib/utils"
@@ -11,9 +21,17 @@ import { PlayerDetailDialog } from "@/components/players-section"
 
 export function TeamsSection() {
   const season = new Date().getFullYear().toString()
+  const [token] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
+  )
   const { data, error, isLoading, mutate } = useSWR<Team[]>(endpoints.teams(), fetcher, {
     revalidateOnFocus: false,
   })
+  const { data: preferences, mutate: mutatePreferences } = useSWR<UserPreference>(
+    token ? ["preferences", token] : null,
+    () => fetchPreferences(token!),
+    { revalidateOnFocus: false },
+  )
   const {
     data: standingsData,
     error: standingsError,
@@ -43,6 +61,11 @@ export function TeamsSection() {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [teams, query])
 
+  async function setFavoriteTeam(team: Team) {
+    if (!token) return
+    await mutatePreferences(updatePreferences(token, team.id, team.name), { revalidate: false })
+  }
+
   return (
     <section aria-labelledby="teams-heading" className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -52,6 +75,9 @@ export function TeamsSection() {
             MLB 팀 목록
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">팀 순위와 선수 명단을 한 화면에서 확인할 수 있습니다.</p>
+          {preferences?.favoriteTeamName && (
+            <p className="mt-2 text-xs font-semibold text-primary">내 팀: {preferences.favoriteTeamName}</p>
+          )}
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -98,6 +124,7 @@ export function TeamsSection() {
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {list.map((t) => {
                     const isActive = selected?.id === t.id
+                    const isFavorite = preferences?.favoriteTeamId === t.id
                     return (
                       <button
                         key={t.id}
@@ -107,6 +134,8 @@ export function TeamsSection() {
                           "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                           isActive
                             ? "border-primary bg-primary/10"
+                            : isFavorite
+                              ? "border-primary/50 bg-primary/5"
                             : "border-border bg-card hover:border-primary/40 hover:bg-accent",
                         )}
                       >
@@ -124,7 +153,10 @@ export function TeamsSection() {
                           />
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-foreground">{t.name}</p>
+                          <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
+                            <span className="truncate">{t.name}</span>
+                            {isFavorite && <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">내 팀</span>}
+                          </p>
                           <p className="truncate text-xs text-muted-foreground">{t.leagueName ?? "리그 정보 없음"}</p>
                         </div>
                       </button>
@@ -137,7 +169,12 @@ export function TeamsSection() {
 
           {/* 선택된 팀 명단 */}
           <div className="lg:sticky lg:top-20 lg:self-start">
-            <RosterPanel team={selected} />
+            <RosterPanel
+              team={selected}
+              isFavorite={Boolean(selected && preferences?.favoriteTeamId === selected.id)}
+              canSetFavorite={Boolean(token)}
+              onSetFavorite={setFavoriteTeam}
+            />
           </div>
         </div>
       )}
@@ -258,7 +295,17 @@ function StandingsBoard({
   )
 }
 
-function RosterPanel({ team }: { team: Team | null }) {
+function RosterPanel({
+  team,
+  isFavorite,
+  canSetFavorite,
+  onSetFavorite,
+}: {
+  team: Team | null
+  isFavorite: boolean
+  canSetFavorite: boolean
+  onSetFavorite: (team: Team) => void
+}) {
   if (!team) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-card/50 p-8">
@@ -266,10 +313,28 @@ function RosterPanel({ team }: { team: Team | null }) {
       </div>
     )
   }
-  return <Roster team={team} key={team.id} />
+  return (
+    <Roster
+      team={team}
+      key={team.id}
+      isFavorite={isFavorite}
+      canSetFavorite={canSetFavorite}
+      onSetFavorite={onSetFavorite}
+    />
+  )
 }
 
-function Roster({ team }: { team: Team }) {
+function Roster({
+  team,
+  isFavorite,
+  canSetFavorite,
+  onSetFavorite,
+}: {
+  team: Team
+  isFavorite: boolean
+  canSetFavorite: boolean
+  onSetFavorite: (team: Team) => void
+}) {
   const { data, error, isLoading, mutate } = useSWR<TeamPlayer[]>(endpoints.roster(team.id), fetcher, {
     revalidateOnFocus: false,
   })
@@ -286,6 +351,19 @@ function Roster({ team }: { team: Team }) {
             {team.locationName ?? ""} · {team.venueName ?? "구장 정보 없음"}
           </p>
         </div>
+        <button
+          type="button"
+          disabled={!canSetFavorite || isFavorite}
+          onClick={() => onSetFavorite(team)}
+          className={cn(
+            "ml-auto shrink-0 rounded-md border px-3 py-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed",
+            isFavorite
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-50",
+          )}
+        >
+          {isFavorite ? "내 팀" : "내 팀으로 설정"}
+        </button>
       </div>
       <div className="p-2">
         {isLoading && <LoadingState label="선수 명단을 불러오는 중..." />}

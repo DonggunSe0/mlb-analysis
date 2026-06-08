@@ -12,6 +12,7 @@ import type {
   Team,
   TeamPlayer,
   TeamStanding,
+  UserPreference,
 } from './types'
 
 export class ApiError extends Error {
@@ -87,6 +88,7 @@ export const endpoints = {
   allStarVotes: () => '/api/v1/all-star/votes',
   gamePick: (gamePk: number) => `/api/v1/games/${gamePk}/pick`,
   myGamePicks: () => '/api/v1/games/picks/me',
+  preferences: () => '/api/v1/users/me/preferences',
 }
 
 export function login(email: string, password: string) {
@@ -129,6 +131,17 @@ export function submitGamePick(token: string, gamePk: number, pickedTeamId: numb
   }, token)
 }
 
+export function fetchPreferences(token: string) {
+  return apiRequest<UserPreference>(endpoints.preferences(), {}, token)
+}
+
+export function updatePreferences(token: string, favoriteTeamId: number, favoriteTeamName: string) {
+  return apiRequest<UserPreference>(endpoints.preferences(), {
+    method: 'PUT',
+    body: JSON.stringify({ favoriteTeamId, favoriteTeamName }),
+  }, token)
+}
+
 export type {
   AllStarBallot,
   AllStarSelection,
@@ -143,4 +156,5 @@ export type {
   Team,
   TeamPlayer,
   TeamStanding,
+  UserPreference,
 }

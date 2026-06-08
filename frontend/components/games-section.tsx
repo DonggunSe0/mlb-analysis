@@ -6,10 +6,12 @@ import {
   AUTH_TOKEN_KEY,
   endpoints,
   fetcher,
+  fetchPreferences,
   fetchGamePick,
   submitGamePick,
   type Game,
   type GamePick,
+  type UserPreference,
 } from "@/lib/api"
 import { StatusBadge, getStatusInfo } from "@/components/status-badge"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
@@ -22,9 +24,17 @@ function todayStr() {
 }
 
 export function GamesSection({ date, onDateChange }: { date: string; onDateChange: (d: string) => void }) {
+  const [token] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
+  )
   const { data, error, isLoading, mutate } = useSWR<Game[]>(endpoints.games(date), fetcher, {
     revalidateOnFocus: false,
   })
+  const { data: preferences } = useSWR<UserPreference>(
+    token ? ["preferences", token] : null,
+    () => fetchPreferences(token!),
+    { revalidateOnFocus: false },
+  )
 
   const games = useMemo(() => data ?? [], [data])
 
@@ -108,7 +118,7 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
       {!isLoading && !error && games.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {games.map((g) => (
-            <GameCard key={g.gamePk} game={g} />
+            <GameCard key={g.gamePk} game={g} favoriteTeamId={preferences?.favoriteTeamId ?? null} />
           ))}
         </div>
       )}
@@ -160,17 +170,28 @@ function StatusDistribution({ buckets, total }: { buckets: Record<string, number
   )
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCard({ game, favoriteTeamId }: { game: Game; favoriteTeamId: number | null }) {
   const { tone } = getStatusInfo(game.status)
   const isFinal = tone === "final"
   const homeWin = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
   const awayWin = isFinal && (game.awayScore ?? 0) > (game.homeScore ?? 0)
   const time = new Date(game.gameDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+  const hasFavoriteTeam = favoriteTeamId === game.homeTeamId || favoriteTeamId === game.awayTeamId
 
   return (
-    <article className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
+    <article
+      className={cn(
+        "rounded-xl border bg-card p-4 transition-colors hover:border-primary/40",
+        hasFavoriteTeam ? "border-primary/60 shadow-sm shadow-primary/10" : "border-border",
+      )}
+    >
       <div className="flex items-center justify-between">
-        <StatusBadge status={game.status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={game.status} />
+          {hasFavoriteTeam && (
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">내 팀</span>
+          )}
+        </div>
         <span className="font-mono text-xs text-muted-foreground">{time}</span>
       </div>
       <div className="mt-3 space-y-1">

@@ -159,3 +159,8 @@ export type GamePick = {
   pickedTeamName: string
   createdAt: string
 }
+
+export type UserPreference = {
+  favoriteTeamId: number | null
+  favoriteTeamName: string | null
+}
