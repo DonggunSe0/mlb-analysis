@@ -1,12 +1,12 @@
 "use client"
 
 import useSWR from "swr"
-import { useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { fetcher, endpoints, type Player, type PlayerStats } from "@/lib/api"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { PlayerAvatar } from "@/components/media"
 import { cn } from "@/lib/utils"
-import { BarChart3, Search, TrendingUp } from "lucide-react"
+import { BarChart3, Search, TrendingUp, X } from "lucide-react"
 
 export function PlayersSection() {
   const [input, setInput] = useState("")
@@ -63,75 +63,118 @@ export function PlayersSection() {
         </button>
       </form>
 
-      {!query && (
-        <EmptyState message="검색어를 입력하고 검색 버튼을 누르면 결과가 표시됩니다." />
-      )}
+      {!query && <EmptyState message="검색어를 입력하고 검색 버튼을 누르면 결과가 표시됩니다." />}
 
       {query && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
-          <div>
-            {isLoading && <LoadingState label="선수를 검색하는 중..." />}
-            {error && (
-              <ErrorState message="선수 검색에 실패했습니다. 잠시 후 다시 시도해 주세요." onRetry={() => mutate()} />
-            )}
-            {!isLoading && !error && list.length === 0 && (
-              <EmptyState message="검색 결과가 없습니다. 선수 이름을 다시 입력해 주세요." />
-            )}
-            {!isLoading && !error && list.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  검색 결과 <span className="font-mono font-semibold text-foreground">{list.length}</span>명
-                </p>
-                <ul className="space-y-2">
-                  {list.map((p) => {
-                    const isActive = selectedId === p.id
-                    return (
-                      <li key={p.id}>
-                        <button
-                          onClick={() => setSelectedId(p.id)}
-                          aria-pressed={isActive}
-                          className={cn(
-                            "flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                            isActive
-                              ? "border-primary bg-primary/10"
-                              : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                          )}
-                        >
-                          <PlayerAvatar playerId={p.id} name={p.fullName} size={180} className="size-16 shrink-0 text-sm" />
-                          <div className="min-w-0">
-                            <p className="truncate text-base font-semibold text-foreground">{p.fullName}</p>
-                            <p className="mt-1 truncate text-sm text-muted-foreground">
-                              {p.primaryPosition ?? "포지션 정보 없음"}
-                              {p.birthCountry ? ` · ${p.birthCountry}` : ""}
-                            </p>
-                          </div>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <div className="lg:sticky lg:top-20 lg:self-start">
-            <PlayerDetailPanel playerId={selectedId} />
-          </div>
+        <div className="min-w-0">
+          {isLoading && <LoadingState label="선수를 검색하는 중..." />}
+          {error && (
+            <ErrorState message="선수 검색에 실패했습니다. 잠시 후 다시 시도해 주세요." onRetry={() => mutate()} />
+          )}
+          {!isLoading && !error && list.length === 0 && (
+            <EmptyState message="검색 결과가 없습니다. 선수 이름을 다시 입력해 주세요." />
+          )}
+          {!isLoading && !error && list.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                검색 결과 <span className="font-mono font-semibold text-foreground">{list.length}</span>명 · 선수를 누르면 상세 팝업이 열립니다.
+              </p>
+              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {list.map((p) => {
+                  const isActive = selectedId === p.id
+                  return (
+                    <li key={p.id}>
+                      <button
+                        onClick={() => setSelectedId(p.id)}
+                        aria-haspopup="dialog"
+                        aria-pressed={isActive}
+                        className={cn(
+                          "flex h-full w-full items-center gap-4 rounded-xl border p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                          isActive
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                        )}
+                      >
+                        <PlayerAvatar playerId={p.id} name={p.fullName} size={180} className="size-16 shrink-0 text-sm" />
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-semibold text-foreground">{p.fullName}</p>
+                          <p className="mt-1 truncate text-sm text-muted-foreground">
+                            {p.primaryPosition ?? "포지션 정보 없음"}
+                            {p.birthCountry ? ` · ${p.birthCountry}` : ""}
+                          </p>
+                          <p className="mt-2 text-xs font-medium text-primary">상세 보기</p>
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       )}
+
+      <PlayerDetailDialog playerId={selectedId} onClose={() => setSelectedId(null)} />
     </section>
   )
 }
 
-function PlayerDetailPanel({ playerId }: { playerId: number | null }) {
-  if (!playerId) {
-    return (
-      <div className="rounded-xl border border-dashed border-border bg-card/50 p-8">
-        <EmptyState message="검색 결과에서 선수를 선택하면 상세 정보가 표시됩니다." />
+function PlayerDetailDialog({ playerId, onClose }: { playerId: number | null; onClose: () => void }) {
+  const titleId = useId()
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!playerId) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    closeButtonRef.current?.focus()
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [playerId, onClose])
+
+  if (!playerId) return null
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/45 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div className="max-h-[92vh] w-full overflow-hidden rounded-t-3xl border border-border bg-card shadow-2xl sm:max-w-3xl sm:rounded-3xl">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-card/95 px-5 py-4 backdrop-blur">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Player detail</p>
+            <h2 id={titleId} className="text-lg font-bold text-foreground">선수 상세보기</h2>
+          </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            aria-label="선수 상세보기 닫기"
+            className="rounded-full border border-border bg-secondary p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="max-h-[calc(92vh-4.5rem)] overflow-y-auto overscroll-contain">
+          <PlayerDetail playerId={playerId} />
+        </div>
       </div>
-    )
-  }
-  return <PlayerDetail playerId={playerId} key={playerId} />
+    </div>
+  )
 }
 
 function PlayerDetail({ playerId }: { playerId: number }) {
@@ -150,14 +193,14 @@ function PlayerDetail({ playerId }: { playerId: number }) {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="p-6">
         <LoadingState label="선수 정보를 불러오는 중..." />
       </div>
     )
   }
   if (error || !data) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="p-6">
         <ErrorState message="선수 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요." onRetry={() => mutate()} />
       </div>
     )
@@ -172,18 +215,24 @@ function PlayerDetail({ playerId }: { playerId: number }) {
   ]
 
   return (
-    <article className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex items-center gap-4 border-b border-border bg-secondary/40 p-6">
-        <PlayerAvatar playerId={data.id} name={data.fullName} size={240} className="size-16 shrink-0 text-lg" />
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Player profile</p>
-          <h2 className="truncate text-xl font-bold tracking-tight text-foreground">{data.fullName}</h2>
-          <p className="mt-0.5 font-mono text-xs text-muted-foreground">ID #{data.id}</p>
+    <article>
+      <div className="relative border-b border-border bg-gradient-to-br from-primary/12 via-card to-secondary p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+          <PlayerAvatar playerId={data.id} name={data.fullName} size={320} className="size-24 shrink-0 border-4 border-card text-2xl shadow-sm" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Player profile</p>
+            <h3 className="mt-1 text-3xl font-black tracking-tight text-foreground sm:truncate">{data.fullName}</h3>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
+              <span className="rounded-full bg-card/85 px-3 py-1 text-foreground shadow-sm">ID #{data.id}</span>
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">{data.primaryPosition ?? "포지션 정보 없음"}</span>
+              <span className="rounded-full bg-secondary px-3 py-1 text-secondary-foreground">{data.birthCountry ?? "국가 정보 없음"}</span>
+            </div>
+          </div>
         </div>
       </div>
-      <dl className="grid grid-cols-2 gap-px bg-border">
+      <dl className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
         {facts.map((f) => (
-          <div key={f.label} className="bg-card p-4">
+          <div key={f.label} className="rounded-xl border border-border bg-secondary/40 p-4">
             <dt className="text-xs text-muted-foreground">{f.label}</dt>
             <dd className="mt-1 text-sm font-semibold text-foreground">{f.value}</dd>
           </div>
@@ -216,7 +265,7 @@ function SeasonHittingStats({
   const hasStats = Boolean(stats && (stats.gamesPlayed != null || stats.atBats != null || stats.ops != null))
 
   return (
-    <section aria-labelledby="player-stats-heading" className="border-t border-border p-6">
+    <section aria-labelledby="player-stats-heading" className="border-t border-border p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
@@ -288,6 +337,8 @@ function HittingStatsTable({ stats }: { stats: PlayerStats }) {
     ["뜬공 아웃", stats.airOuts],
   ] as const
 
+  const visibleRows = rows.filter(([, value]) => value != null && value !== "")
+
   return (
     <div className="mt-5 space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -302,13 +353,13 @@ function HittingStatsTable({ stats }: { stats: PlayerStats }) {
         ))}
       </div>
 
-      <div className="rounded-xl border border-border">
-        <div className="flex items-center gap-2 border-b border-border bg-secondary/40 px-4 py-3 text-sm font-semibold text-foreground">
+      <div className="overflow-hidden rounded-xl border border-border">
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-secondary/95 px-4 py-3 text-sm font-semibold text-foreground backdrop-blur">
           <TrendingUp className="size-4 text-primary" aria-hidden="true" />
           주요 타격 성적 전체 보기
         </div>
-        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3">
-          {rows.map(([label, value]) => (
+        <dl className="grid max-h-80 grid-cols-2 gap-px overflow-y-auto overscroll-contain bg-border sm:grid-cols-3">
+          {visibleRows.map(([label, value]) => (
             <div key={label} className="bg-card px-4 py-3">
               <dt className="text-xs text-muted-foreground">{label}</dt>
               <dd className="mt-1 font-mono text-sm font-semibold text-foreground">{formatStat(value)}</dd>
