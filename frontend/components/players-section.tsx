@@ -91,16 +91,16 @@ export function PlayersSection() {
                           onClick={() => setSelectedId(p.id)}
                           aria-pressed={isActive}
                           className={cn(
-                            "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                            "flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                             isActive
                               ? "border-primary bg-primary/10"
                               : "border-border bg-card hover:border-primary/40 hover:bg-accent",
                           )}
                         >
-                          <PlayerAvatar playerId={p.id} name={p.fullName} size={120} className="size-9 shrink-0 text-[11px]" />
+                          <PlayerAvatar playerId={p.id} name={p.fullName} size={180} className="size-16 shrink-0 text-sm" />
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-foreground">{p.fullName}</p>
-                            <p className="truncate text-xs text-muted-foreground">
+                            <p className="truncate text-base font-semibold text-foreground">{p.fullName}</p>
+                            <p className="mt-1 truncate text-sm text-muted-foreground">
                               {p.primaryPosition ?? "포지션 정보 없음"}
                               {p.birthCountry ? ` · ${p.birthCountry}` : ""}
                             </p>
