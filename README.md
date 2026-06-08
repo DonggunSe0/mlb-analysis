@@ -19,9 +19,20 @@ cd backend
 ./gradlew bootRun
 ```
 
+로그인 기능을 MySQL과 함께 사용할 때는 Docker MySQL을 먼저 띄운 뒤 `login` 프로파일로 실행합니다.
+
+```bash
+docker compose -f docker-compose.login.yml up -d
+cd backend
+SPRING_PROFILES_ACTIVE=login ./gradlew bootRun
+```
+
 주요 API:
 
 ```bash
+curl -X POST "http://localhost:8080/api/v1/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"fan@example.com","displayName":"Fan","password":"password123"}'
 curl "http://localhost:8080/api/v1/games?date=2026-06-01"
 curl "http://localhost:8080/api/v1/teams"
 curl "http://localhost:8080/api/v1/teams/133/players"

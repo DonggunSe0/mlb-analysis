@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   fetchGames,
+  fetchCurrentUser,
   fetchTeamPlayers,
   fetchTeams,
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest,
   searchPlayers,
+  type CurrentUser,
   type Game,
   type Player,
   type Team,
@@ -16,15 +21,21 @@ function todayText() {
 }
 
 type LoadState = 'idle' | 'loading' | 'success' | 'error'
+type AuthMode = 'login' | 'register'
+const AUTH_TOKEN_KEY = 'mlb-analysis-auth-token'
 
 function App() {
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY) ?? '')
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [authReady, setAuthReady] = useState(() => !localStorage.getItem(AUTH_TOKEN_KEY))
+
   const [date, setDate] = useState(todayText())
   const [games, setGames] = useState<Game[]>([])
-  const [gamesState, setGamesState] = useState<LoadState>('loading')
+  const [gamesState, setGamesState] = useState<LoadState>('idle')
   const [gamesError, setGamesError] = useState('')
 
   const [teams, setTeams] = useState<Team[]>([])
-  const [teamsState, setTeamsState] = useState<LoadState>('loading')
+  const [teamsState, setTeamsState] = useState<LoadState>('idle')
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null)
 
   const [roster, setRoster] = useState<TeamPlayer[]>([])
@@ -37,6 +48,25 @@ function App() {
   const [searchError, setSearchError] = useState('')
 
   useEffect(() => {
+    if (!authToken) return
+
+    fetchCurrentUser(authToken)
+      .then((user) => {
+        setCurrentUser(user)
+        setGamesState('loading')
+        setTeamsState('loading')
+      })
+      .catch(() => {
+        localStorage.removeItem(AUTH_TOKEN_KEY)
+        setAuthToken('')
+        setCurrentUser(null)
+      })
+      .finally(() => setAuthReady(true))
+  }, [authToken])
+
+  useEffect(() => {
+    if (!currentUser) return
+
     fetchGames(date)
       .then((response) => {
         setGames(response.games)
@@ -46,9 +76,11 @@ function App() {
         setGamesError('경기 데이터를 불러오지 못했습니다. 백엔드 서버와 외부 MLB API 상태를 확인해 주세요.')
         setGamesState('error')
       })
-  }, [date])
+  }, [date, currentUser])
 
   useEffect(() => {
+    if (!currentUser) return
+
     fetchTeams()
       .then((response) => {
         setTeams(response.teams)
@@ -57,7 +89,7 @@ function App() {
         setTeamsState('success')
       })
       .catch(() => setTeamsState('error'))
-  }, [])
+  }, [currentUser])
 
   useEffect(() => {
     if (!selectedTeamId) return
@@ -98,13 +130,47 @@ function App() {
     }
   }
 
+  function handleAuthenticated(response: { token: string; user: CurrentUser }) {
+    localStorage.setItem(AUTH_TOKEN_KEY, response.token)
+    setAuthToken(response.token)
+    setCurrentUser(response.user)
+    setGamesState('loading')
+    setTeamsState('loading')
+  }
+
+  async function handleLogout() {
+    if (authToken) {
+      await logoutRequest(authToken).catch(() => undefined)
+    }
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    setAuthToken('')
+    setCurrentUser(null)
+    setGames([])
+    setTeams([])
+    setRoster([])
+    setPlayers([])
+    setSelectedPlayer(null)
+    setSelectedTeamId(null)
+    setGamesState('idle')
+    setTeamsState('idle')
+    setRosterState('idle')
+  }
+
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? null
   const completedGames = games.filter((game) => game.homeScore !== null || game.awayScore !== null).length
   const totalRuns = games.reduce((sum, game) => sum + (game.homeScore ?? 0) + (game.awayScore ?? 0), 0)
 
+  if (!authReady) {
+    return <main className="grid min-h-screen place-items-center bg-mlb-navy text-white">로그인 상태를 확인하는 중입니다...</main>
+  }
+
+  if (!currentUser) {
+    return <AuthGate onAuthenticated={handleAuthenticated} />
+  }
+
   return (
     <main className="min-h-screen bg-mlb-navy text-slate-950">
-      <Header />
+      <Header currentUser={currentUser} onLogout={handleLogout} />
 
       <section className="mx-auto grid w-full max-w-7xl grid-cols-[1.35fr_0.65fr] gap-6 px-6 pb-10 pt-8 max-lg:grid-cols-1">
         <HeroSummary date={date} games={games} completedGames={completedGames} totalRuns={totalRuns} />
@@ -244,7 +310,121 @@ function App() {
   )
 }
 
-function Header() {
+function AuthGate({ onAuthenticated }: { onAuthenticated: (response: { token: string; user: CurrentUser }) => void }) {
+  const [mode, setMode] = useState<AuthMode>('login')
+  const [email, setEmail] = useState('fan@example.com')
+  const [displayName, setDisplayName] = useState('MLB Fan')
+  const [password, setPassword] = useState('password123')
+  const [state, setState] = useState<LoadState>('idle')
+  const [error, setError] = useState('')
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setState('loading')
+    setError('')
+
+    try {
+      const response = mode === 'login'
+        ? await loginRequest(email, password)
+        : await registerRequest(email, displayName, password)
+      onAuthenticated(response)
+      setState('success')
+    } catch {
+      setError(mode === 'login' ? '로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.' : '회원가입에 실패했습니다. 다른 이메일을 사용해 보세요.')
+      setState('error')
+    }
+  }
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-mlb-navy px-6 py-10 text-slate-950">
+      <section className="grid w-full max-w-5xl grid-cols-[1fr_420px] overflow-hidden rounded-[2rem] bg-white shadow-scoreboard max-lg:grid-cols-1">
+        <div className="bg-gradient-to-br from-mlb-red via-mlb-blue to-mlb-navy p-10 text-white">
+          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 text-2xl font-black">M</span>
+          <p className="mt-8 text-xs font-black uppercase tracking-[0.32em] text-red-100">Login required</p>
+          <h1 className="mt-3 text-5xl font-black leading-tight">MLB Analysis 로그인</h1>
+          <p className="mt-5 max-w-md text-base leading-7 text-white/80">
+            Docker MySQL에 저장되는 계정으로 로그인한 뒤 경기, 팀, 선수 데이터를 확인합니다.
+          </p>
+          <div className="mt-8 rounded-3xl border border-white/15 bg-white/10 p-5 text-sm text-white/85">
+            <p className="font-black text-white">개발 실행</p>
+            <p className="mt-2 font-mono text-xs">docker compose -f docker-compose.login.yml up -d</p>
+            <p className="mt-1 font-mono text-xs">SPRING_PROFILES_ACTIVE=login ./gradlew bootRun</p>
+          </div>
+        </div>
+
+        <form className="p-8" onSubmit={handleSubmit}>
+          <div className="flex rounded-2xl bg-slate-100 p-1 text-sm font-black">
+            <button
+              className={`focus-ring flex-1 rounded-xl px-4 py-3 ${mode === 'login' ? 'bg-white text-mlb-red shadow-sm' : 'text-slate-500'}`}
+              type="button"
+              onClick={() => setMode('login')}
+            >
+              로그인
+            </button>
+            <button
+              className={`focus-ring flex-1 rounded-xl px-4 py-3 ${mode === 'register' ? 'bg-white text-mlb-red shadow-sm' : 'text-slate-500'}`}
+              type="button"
+              onClick={() => setMode('register')}
+            >
+              회원가입
+            </button>
+          </div>
+
+          <label className="mt-6 block text-sm font-black text-slate-700" htmlFor="auth-email">이메일</label>
+          <input
+            id="auth-email"
+            className="focus-ring mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+
+          {mode === 'register' && (
+            <>
+              <label className="mt-4 block text-sm font-black text-slate-700" htmlFor="auth-name">표시 이름</label>
+              <input
+                id="auth-name"
+                className="focus-ring mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                minLength={2}
+                maxLength={80}
+                required
+              />
+            </>
+          )}
+
+          <label className="mt-4 block text-sm font-black text-slate-700" htmlFor="auth-password">비밀번호</label>
+          <input
+            id="auth-password"
+            className="focus-ring mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            minLength={8}
+            maxLength={72}
+            required
+          />
+
+          {state === 'error' && (
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>
+          )}
+
+          <button
+            className="focus-ring mt-6 w-full rounded-xl bg-mlb-red px-5 py-4 font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            disabled={state === 'loading'}
+            type="submit"
+          >
+            {state === 'loading' ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입 후 시작'}
+          </button>
+        </form>
+      </section>
+    </main>
+  )
+}
+
+function Header({ currentUser, onLogout }: { currentUser: CurrentUser; onLogout: () => void }) {
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-mlb-navy/95 px-6 py-4 text-white backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
@@ -259,6 +439,8 @@ function Header() {
           <a className="focus-ring rounded-full px-4 py-2 hover:bg-white/10" href="#games">오늘의 경기</a>
           <a className="focus-ring rounded-full px-4 py-2 hover:bg-white/10" href="#teams">팀</a>
           <a className="focus-ring rounded-full px-4 py-2 hover:bg-white/10" href="#players">선수 검색</a>
+          <span className="rounded-full bg-white/10 px-4 py-2 text-white">{currentUser.displayName}</span>
+          <button className="focus-ring rounded-full px-4 py-2 hover:bg-white/10" type="button" onClick={onLogout}>로그아웃</button>
         </nav>
       </div>
     </header>
