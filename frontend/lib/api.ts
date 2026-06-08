@@ -1,6 +1,7 @@
 import type {
   AllStarBallot,
   AllStarSelection,
+  AllStarVoteResults,
   AllStarVoteStatus,
   AuthResponse,
   CurrentUser,
@@ -87,6 +88,7 @@ export const endpoints = {
   authLogin: () => '/api/v1/auth/login',
   authMe: () => '/api/v1/auth/me',
   allStarStatus: () => '/api/v1/all-star/votes/me',
+  allStarResults: () => '/api/v1/all-star/votes/results',
   allStarVotes: () => '/api/v1/all-star/votes',
   gamePick: (gamePk: number) => `/api/v1/games/${gamePk}/pick`,
   gamePickSummary: (gamePk: number) => `/api/v1/games/${gamePk}/pick-summary`,
@@ -114,6 +116,10 @@ export function currentUser(token: string) {
 
 export function fetchAllStarStatus(token: string) {
   return apiRequest<AllStarVoteStatus>(endpoints.allStarStatus(), {}, token)
+}
+
+export function fetchAllStarResults() {
+  return apiRequest<AllStarVoteResults>(endpoints.allStarResults())
 }
 
 export function submitAllStarVote(token: string, selections: AllStarSelection[]) {
@@ -157,6 +163,7 @@ export function updatePreferences(token: string, favoriteTeamId: number) {
 export type {
   AllStarBallot,
   AllStarSelection,
+  AllStarVoteResults,
   AllStarVoteStatus,
   AuthResponse,
   CurrentUser,

@@ -153,6 +153,27 @@ export type AllStarVoteStatus = {
   ballot: AllStarBallot | null
 }
 
+export type AllStarResultCandidate = {
+  playerId: number
+  playerName: string
+  teamName: string | null
+  voteCount: number
+  votePercentage: number
+  leading: boolean
+}
+
+export type AllStarResultPosition = {
+  positionKey: string
+  totalVotes: number
+  candidates: AllStarResultCandidate[]
+}
+
+export type AllStarVoteResults = {
+  voteDate: string
+  totalBallots: number
+  positions: AllStarResultPosition[]
+}
+
 export type GamePick = {
   gamePk: number
   pickedTeamId: number
