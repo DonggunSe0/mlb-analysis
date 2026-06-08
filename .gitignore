@@ -44,3 +44,6 @@ out/
 .codex/skills/.system/**
 !.codex/prompts/
 !.codex/prompts/**
+
+# Local Gradle user home/cache
+.gradle-cache/
