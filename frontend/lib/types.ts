@@ -160,6 +160,20 @@ export type GamePick = {
   createdAt: string
 }
 
+export type GamePickTeamSummary = {
+  pickedTeamId: number
+  pickedTeamName: string
+  pickCount: number
+  pickPercentage: number
+  leading: boolean
+}
+
+export type GamePickSummary = {
+  gamePk: number
+  totalPicks: number
+  teams: GamePickTeamSummary[]
+}
+
 export type UserPreference = {
   favoriteTeamId: number | null
   favoriteTeamName: string | null

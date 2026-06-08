@@ -13,6 +13,7 @@ import com.example.mlbanalysis.common.error.ApiExceptionHandler;
 import com.example.mlbanalysis.gamepick.dto.GamePickRequest;
 import com.example.mlbanalysis.gamepick.dto.GamePickResponse;
 import com.example.mlbanalysis.gamepick.service.GamePickService;
+import com.example.mlbanalysis.gamepick.service.GamePickSummaryService;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ class GamePickControllerTest {
 
     @MockitoBean
     private GamePickService gamePickService;
+
+    @MockitoBean
+    private GamePickSummaryService gamePickSummaryService;
 
     @Test
     void getPickReturnsAuthenticatedUsersPickForGame() throws Exception {

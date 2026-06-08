@@ -6,6 +6,7 @@ import type {
   CurrentUser,
   Game,
   GamePick,
+  GamePickSummary,
   NewsItem,
   Player,
   PlayerStats,
@@ -30,6 +31,7 @@ type TeamStandingEnvelope = { standings: TeamStanding[] }
 type RosterEnvelope = { players: TeamPlayer[] }
 type PlayerSearchEnvelope = { players: Player[] }
 type NewsEnvelope = { news: NewsItem[] }
+type GamePickListEnvelope = { picks: GamePick[] }
 
 export const AUTH_TOKEN_KEY = 'mlb-analysis-auth-token'
 
@@ -87,6 +89,7 @@ export const endpoints = {
   allStarStatus: () => '/api/v1/all-star/votes/me',
   allStarVotes: () => '/api/v1/all-star/votes',
   gamePick: (gamePk: number) => `/api/v1/games/${gamePk}/pick`,
+  gamePickSummary: (gamePk: number) => `/api/v1/games/${gamePk}/pick-summary`,
   myGamePicks: () => '/api/v1/games/picks/me',
   preferences: () => '/api/v1/users/me/preferences',
 }
@@ -131,6 +134,15 @@ export function submitGamePick(token: string, gamePk: number, pickedTeamId: numb
   }, token)
 }
 
+export function fetchGamePickSummary(gamePk: number) {
+  return apiRequest<GamePickSummary>(endpoints.gamePickSummary(gamePk))
+}
+
+export async function fetchMyGamePicks(token: string) {
+  const response = await apiRequest<GamePickListEnvelope>(endpoints.myGamePicks(), {}, token)
+  return response.picks
+}
+
 export function fetchPreferences(token: string) {
   return apiRequest<UserPreference>(endpoints.preferences(), {}, token)
 }
@@ -150,6 +162,7 @@ export type {
   CurrentUser,
   Game,
   GamePick,
+  GamePickSummary,
   NewsItem,
   Player,
   PlayerStats,
