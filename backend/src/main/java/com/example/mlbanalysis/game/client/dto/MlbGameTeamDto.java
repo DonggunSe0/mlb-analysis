@@ -1,4 +1,4 @@
 package com.example.mlbanalysis.game.client.dto;
 
-public record MlbGameTeamDto(String name) {
+public record MlbGameTeamDto(Integer id, String name) {
 }

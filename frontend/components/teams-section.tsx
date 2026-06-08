@@ -7,6 +7,7 @@ import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { TeamLogo } from "@/components/media"
 import { cn } from "@/lib/utils"
 import { Search, Trophy } from "lucide-react"
+import { PlayerDetailDialog } from "@/components/players-section"
 
 export function TeamsSection() {
   const season = new Date().getFullYear().toString()
@@ -272,6 +273,7 @@ function Roster({ team }: { team: Team }) {
   const { data, error, isLoading, mutate } = useSWR<TeamPlayer[]>(endpoints.roster(team.id), fetcher, {
     revalidateOnFocus: false,
   })
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
   const players = data ?? []
 
   return (
@@ -317,7 +319,19 @@ function Roster({ team }: { team: Team }) {
                 {players.map((p, i) => (
                   <tr key={p.playerId ?? i} className="border-b border-border/50 last:border-0 hover:bg-accent">
                     <td className="px-3 py-2 font-mono text-muted-foreground">{p.jerseyNumber ?? "-"}</td>
-                    <td className="px-3 py-2 font-medium text-foreground">{p.fullName ?? "이름 없음"}</td>
+                    <td className="px-3 py-2 font-medium text-foreground">
+                      {p.playerId ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlayerId(p.playerId)}
+                          className="rounded text-left font-semibold hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        >
+                          {p.fullName ?? "이름 없음"}
+                        </button>
+                      ) : (
+                        p.fullName ?? "이름 없음"
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-right">
                       <span className="inline-flex items-center rounded bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">
                         {p.position ?? "-"}
@@ -330,6 +344,7 @@ function Roster({ team }: { team: Team }) {
           </div>
         )}
       </div>
+      <PlayerDetailDialog playerId={selectedPlayerId} onClose={() => setSelectedPlayerId(null)} />
     </div>
   )
 }

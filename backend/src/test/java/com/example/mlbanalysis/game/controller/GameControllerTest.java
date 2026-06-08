@@ -36,7 +36,9 @@ class GameControllerTest {
                         822974L,
                         "2026-06-01T22:40:00Z",
                         "Final",
+                        139,
                         "Tampa Bay Rays",
+                        116,
                         "Detroit Tigers",
                         9,
                         10
@@ -49,7 +51,9 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.games[0].gamePk").value(822974))
                 .andExpect(jsonPath("$.games[0].gameDate").value("2026-06-01T22:40:00Z"))
                 .andExpect(jsonPath("$.games[0].status").value("Final"))
+                .andExpect(jsonPath("$.games[0].homeTeamId").value(139))
                 .andExpect(jsonPath("$.games[0].homeTeam").value("Tampa Bay Rays"))
+                .andExpect(jsonPath("$.games[0].awayTeamId").value(116))
                 .andExpect(jsonPath("$.games[0].awayTeam").value("Detroit Tigers"))
                 .andExpect(jsonPath("$.games[0].homeScore").value(9))
                 .andExpect(jsonPath("$.games[0].awayScore").value(10));

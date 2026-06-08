@@ -90,4 +90,65 @@ export type PlayerStats = {
   babip: string | null
   groundOuts: number | null
   airOuts: number | null
+  gamesStarted: number | null
+  era: string | null
+  inningsPitched: string | null
+  wins: number | null
+  losses: number | null
+  saves: number | null
+  holds: number | null
+  blownSaves: number | null
+  earnedRuns: number | null
+  whip: string | null
+  battersFaced: number | null
+  gamesPitched: number | null
+  completeGames: number | null
+  shutouts: number | null
+  strikePercentage: string | null
+  wildPitches: number | null
+  pitchesPerInning: string | null
+  strikeoutWalkRatio: string | null
+  strikeoutsPer9Inn: string | null
+  walksPer9Inn: string | null
+  hitsPer9Inn: string | null
+  homeRunsPer9: string | null
+}
+
+export type NewsItem = {
+  title: string | null
+  link: string | null
+  summary: string | null
+  publishedAt: string | null
+}
+
+export type CurrentUser = {
+  id: number
+  email: string
+  displayName: string
+}
+
+export type AuthResponse = {
+  token: string
+  expiresAt: string
+  user: CurrentUser
+}
+
+export type AllStarSelection = {
+  positionKey: string
+  playerId: number
+  playerName: string
+  teamName: string | null
+}
+
+export type AllStarBallot = {
+  id: number
+  voteDate: string
+  createdAt: string
+  selections: AllStarSelection[]
+}
+
+export type AllStarVoteStatus = {
+  canVote: boolean
+  voteDate: string
+  ballot: AllStarBallot | null
 }
