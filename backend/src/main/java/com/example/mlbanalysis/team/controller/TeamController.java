@@ -1,10 +1,12 @@
 package com.example.mlbanalysis.team.controller;
 
 import com.example.mlbanalysis.team.dto.TeamListResponse;
+import com.example.mlbanalysis.team.dto.TeamStandingListResponse;
 import com.example.mlbanalysis.team.service.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,5 +23,11 @@ public class TeamController {
     @GetMapping
     public TeamListResponse getTeams() {
         return teamService.getTeams();
+    }
+
+    @Operation(summary = "Return regular season MLB standings grouped by division")
+    @GetMapping("/standings")
+    public TeamStandingListResponse getStandings(@RequestParam(required = false) String season) {
+        return teamService.getStandings(season);
     }
 }

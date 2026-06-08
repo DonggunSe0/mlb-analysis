@@ -29,6 +29,24 @@ export type TeamPlayer = {
   position: string | null
 }
 
+export type TeamStanding = {
+  teamId: number | null
+  teamName: string | null
+  season: string
+  leagueName: string | null
+  divisionName: string | null
+  divisionRank: number | null
+  leagueRank: number | null
+  gamesPlayed: number | null
+  wins: number | null
+  losses: number | null
+  winningPercentage: string | null
+  gamesBack: string | null
+  wildCardGamesBack: string | null
+  runDifferential: number | null
+  divisionLeader: boolean | null
+}
+
 export type Player = {
   id: number
   fullName: string

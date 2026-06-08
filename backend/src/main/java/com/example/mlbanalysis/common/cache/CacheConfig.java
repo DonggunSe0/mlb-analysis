@@ -15,6 +15,7 @@ public class CacheConfig {
     public static final String MLB_PLAYER_SEARCHES = "mlbPlayerSearches";
     public static final String MLB_TEAMS = "mlbTeams";
     public static final String MLB_TEAM_PLAYERS = "mlbTeamPlayers";
+    public static final String MLB_STANDINGS = "mlbStandings";
 
     @Bean
     public CacheManager cacheManager() {
@@ -24,7 +25,8 @@ public class CacheConfig {
                 MLB_PLAYER_STATS,
                 MLB_PLAYER_SEARCHES,
                 MLB_TEAMS,
-                MLB_TEAM_PLAYERS
+                MLB_TEAM_PLAYERS,
+                MLB_STANDINGS
         );
     }
 }

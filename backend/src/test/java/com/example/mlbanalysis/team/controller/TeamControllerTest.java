@@ -9,6 +9,8 @@ import com.example.mlbanalysis.common.error.ApiExceptionHandler;
 import com.example.mlbanalysis.common.error.MlbApiException;
 import com.example.mlbanalysis.team.dto.TeamListResponse;
 import com.example.mlbanalysis.team.dto.TeamResponse;
+import com.example.mlbanalysis.team.dto.TeamStandingListResponse;
+import com.example.mlbanalysis.team.dto.TeamStandingResponse;
 import com.example.mlbanalysis.team.service.TeamService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,37 @@ class TeamControllerTest {
                 .andExpect(jsonPath("$.teams[0].divisionName").value("American League West"))
                 .andExpect(jsonPath("$.teams[0].venueName").value("Sutter Health Park"))
                 .andExpect(jsonPath("$.teams[0].active").value(true));
+    }
+
+    @Test
+    void getStandingsReturnsPublicEnvelope() throws Exception {
+        when(teamService.getStandings("2026")).thenReturn(new TeamStandingListResponse("2026", List.of(new TeamStandingResponse(
+                139,
+                "Rays",
+                "2026",
+                "American League",
+                "American League East",
+                1,
+                1,
+                62,
+                37,
+                25,
+                ".597",
+                "-",
+                "-",
+                42,
+                true
+        ))));
+
+        mockMvc.perform(get("/api/v1/teams/standings").param("season", "2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.season").value("2026"))
+                .andExpect(jsonPath("$.standings[0].teamId").value(139))
+                .andExpect(jsonPath("$.standings[0].teamName").value("Rays"))
+                .andExpect(jsonPath("$.standings[0].divisionName").value("American League East"))
+                .andExpect(jsonPath("$.standings[0].divisionRank").value(1))
+                .andExpect(jsonPath("$.standings[0].wins").value(37))
+                .andExpect(jsonPath("$.standings[0].divisionLeader").value(true));
     }
 
     @Test
