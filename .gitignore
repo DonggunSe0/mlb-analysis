@@ -47,3 +47,7 @@ out/
 
 # Local Gradle user home/cache
 .gradle-cache/
+
+# Local linked worktrees
+.worktrees
+.worktrees/

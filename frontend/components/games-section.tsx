@@ -8,16 +8,19 @@ import {
   fetcher,
   fetchPreferences,
   fetchGamePick,
+  fetchGamePickSummary,
+  fetchMyGamePicks,
   submitGamePick,
   type Game,
   type GamePick,
+  type GamePickSummary,
   type UserPreference,
 } from "@/lib/api"
 import { StatusBadge, getStatusInfo } from "@/components/status-badge"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { TeamLogo } from "@/components/media"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, Lock } from "lucide-react"
+import { CheckCircle2, Flag, Lock, Sparkles } from "lucide-react"
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -27,6 +30,7 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
   const [token] = useState<string | null>(() =>
     typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
   )
+  const [pickVersion, setPickVersion] = useState(0)
   const { data, error, isLoading, mutate } = useSWR<Game[]>(endpoints.games(date), fetcher, {
     revalidateOnFocus: false,
   })
@@ -104,6 +108,16 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
       {/* 상태 분포 시각화 */}
       {!isLoading && !error && games.length > 0 && <StatusDistribution buckets={stats.buckets} total={games.length} />}
 
+      {!isLoading && !error && games.length > 0 && (
+        <PickCenter
+          games={games}
+          token={token}
+          favoriteTeamId={preferences?.favoriteTeamId ?? null}
+          favoriteTeamName={preferences?.favoriteTeamName ?? null}
+          pickVersion={pickVersion}
+        />
+      )}
+
       {/* 스코어보드 */}
       {isLoading && <LoadingState label="경기 데이터를 불러오는 중..." />}
       {error && (
@@ -118,7 +132,12 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
       {!isLoading && !error && games.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {games.map((g) => (
-            <GameCard key={g.gamePk} game={g} favoriteTeamId={preferences?.favoriteTeamId ?? null} />
+            <GameCard
+              key={g.gamePk}
+              game={g}
+              favoriteTeamId={preferences?.favoriteTeamId ?? null}
+              onPickSaved={() => setPickVersion((value) => value + 1)}
+            />
           ))}
         </div>
       )}
@@ -170,7 +189,162 @@ function StatusDistribution({ buckets, total }: { buckets: Record<string, number
   )
 }
 
-function GameCard({ game, favoriteTeamId }: { game: Game; favoriteTeamId: number | null }) {
+function PickCenter({
+  games,
+  token,
+  favoriteTeamId,
+  favoriteTeamName,
+  pickVersion,
+}: {
+  games: Game[]
+  token: string | null
+  favoriteTeamId: number | null
+  favoriteTeamName: string | null
+  pickVersion: number
+}) {
+  const { data: myPicks } = useSWR<GamePick[]>(
+    token ? ["my-game-picks", token, pickVersion] : null,
+    () => fetchMyGamePicks(token!),
+    { revalidateOnFocus: false },
+  )
+  const { data: summaries } = useSWR<GamePickSummary[]>(
+    games.length > 0 ? ["game-pick-summaries", games.map((game) => game.gamePk).join(","), pickVersion] : null,
+    () => Promise.all(games.map((game) => fetchGamePickSummary(game.gamePk))),
+    { revalidateOnFocus: false },
+  )
+
+  const picksByGame = useMemo(() => new Map((myPicks ?? []).map((pick) => [pick.gamePk, pick])), [myPicks])
+  const summariesByGame = useMemo(() => new Map((summaries ?? []).map((summary) => [summary.gamePk, summary])), [summaries])
+  const pickedGames = games.filter((game) => picksByGame.has(game.gamePk))
+  const pendingCount = pickedGames.filter((game) => getStatusInfo(game.status).tone !== "final").length
+  const successCount = pickedGames.filter((game) => {
+    const pick = picksByGame.get(game.gamePk)
+    return Boolean(pick && getStatusInfo(game.status).tone === "final" && winningTeamId(game) === pick.pickedTeamId)
+  }).length
+  const favoriteGames = favoriteTeamId
+    ? games.filter((game) => game.homeTeamId === favoriteTeamId || game.awayTeamId === favoriteTeamId)
+    : []
+  const featuredGames = pickedGames.length > 0 ? pickedGames.slice(0, 3) : games.slice(0, 3)
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">응원 센터</p>
+          <h2 className="mt-1 text-lg font-bold text-foreground">내 응원 센터</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            오늘 경기에서 응원할 팀을 고르고 결과를 함께 확인해 보세요.
+          </p>
+        </div>
+        {favoriteGames.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-2 text-xs font-bold text-primary">
+            <Flag className="size-3.5" aria-hidden="true" />
+            내 팀 경기 {favoriteGames.length}
+          </span>
+        )}
+      </div>
+
+      {!token ? (
+        <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+              <Lock className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-foreground">로그인이 필요합니다</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                로그인하면 오늘의 응원팀을 한곳에서 모아볼 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="오늘 응원" value={String(pickedGames.length)} accent />
+            <Metric label="결과 대기" value={String(pendingCount)} />
+            <Metric label="응원 성공" value={String(successCount)} />
+            <Metric label="내 팀 경기" value={String(favoriteGames.length)} />
+          </div>
+
+          {favoriteGames.length > 0 && (
+            <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+              <p className="text-sm font-bold text-foreground">내 팀 경기가 오늘 있어요</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {favoriteTeamName ?? "내 팀"} 경기를 카드에서 찾아 응원팀을 남겨보세요.
+              </p>
+            </div>
+          )}
+
+          {pickedGames.length === 0 ? (
+            <div className="mt-4">
+              <EmptyState message="아직 저장한 응원팀이 없습니다. 경기 카드에서 응원할 팀을 골라보세요." />
+            </div>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-lg border border-border">
+              <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3 bg-secondary px-3 py-2 text-xs font-semibold text-muted-foreground">
+                <span>경기</span>
+                <span>내 응원팀</span>
+                <span className="text-right">결과</span>
+              </div>
+              <div className="divide-y divide-border">
+                {pickedGames.slice(0, 4).map((game) => {
+                  const pick = picksByGame.get(game.gamePk)!
+                  const result = pickResult(game, pick)
+                  return (
+                    <div key={game.gamePk} className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-3 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-foreground">{game.awayTeam ?? "원정"} @ {game.homeTeam ?? "홈"}</p>
+                        <p className="text-xs text-muted-foreground">{getStatusInfo(game.status).label}</p>
+                      </div>
+                      <span className="truncate text-xs font-semibold text-foreground">{pick.pickedTeamName}</span>
+                      <span className={cn("justify-self-end rounded px-2 py-1 text-[11px] font-bold", result.className)}>
+                        {result.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+        {featuredGames.map((game) => {
+          const summary = summariesByGame.get(game.gamePk)
+          const leader = summary?.teams.find((team) => team.leading) ?? summary?.teams[0]
+          return (
+            <div key={game.gamePk} className="rounded-lg border border-border bg-secondary/40 p-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
+                팬 응원 흐름
+              </div>
+              <p className="mt-2 truncate text-sm font-semibold text-foreground">{game.awayTeam ?? "원정"} @ {game.homeTeam ?? "홈"}</p>
+              {leader && summary && summary.totalPicks > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {leader.pickedTeamName} 쪽으로 {leader.pickCount}명이 응원 중
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">아직 응원 선택이 없습니다.</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function GameCard({
+  game,
+  favoriteTeamId,
+  onPickSaved,
+}: {
+  game: Game
+  favoriteTeamId: number | null
+  onPickSaved: () => void
+}) {
   const { tone } = getStatusInfo(game.status)
   const isFinal = tone === "final"
   const homeWin = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
@@ -198,12 +372,12 @@ function GameCard({ game, favoriteTeamId }: { game: Game; favoriteTeamId: number
         <TeamRow name={game.awayTeam} teamId={game.awayTeamId} score={game.awayScore} win={awayWin} suffix="원정" />
         <TeamRow name={game.homeTeam} teamId={game.homeTeamId} score={game.homeScore} win={homeWin} suffix="홈" />
       </div>
-      <GamePickControls game={game} />
+      <GamePickControls game={game} onPickSaved={onPickSaved} />
     </article>
   )
 }
 
-function GamePickControls({ game }: { game: Game }) {
+function GamePickControls({ game, onPickSaved }: { game: Game; onPickSaved: () => void }) {
   const [token] = useState<string | null>(() =>
     typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
   )
@@ -220,9 +394,10 @@ function GamePickControls({ game }: { game: Game }) {
     try {
       const saved = await submitGamePick(token, game.gamePk, teamId, teamName)
       await mutate(saved, { revalidate: false })
-      setMessage(`${teamName} 픽이 저장됐습니다.`)
+      onPickSaved()
+      setMessage(`${teamName} 응원팀이 저장됐습니다.`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "픽 저장에 실패했습니다.")
+      setMessage(error instanceof Error ? error.message : "응원팀 저장에 실패했습니다.")
     }
   }
 
@@ -231,7 +406,7 @@ function GamePickControls({ game }: { game: Game }) {
       <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <Lock className="size-3.5" aria-hidden="true" />
-          올스타 투표에서 로그인하면 경기 승자 픽을 남길 수 있습니다.
+          올스타 투표에서 로그인하면 경기에서 응원할 팀을 남길 수 있습니다.
         </span>
       </div>
     )
@@ -245,7 +420,7 @@ function GamePickControls({ game }: { game: Game }) {
   return (
     <div className="mt-4 border-t border-border pt-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-muted-foreground">승리팀 픽</p>
+        <p className="text-xs font-semibold text-muted-foreground">응원 팀 선택</p>
         {pick && (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
             <CheckCircle2 className="size-3.5" aria-hidden="true" />
@@ -282,6 +457,20 @@ function GamePickControls({ game }: { game: Game }) {
       )}
     </div>
   )
+}
+
+function winningTeamId(game: Game) {
+  if ((game.homeScore ?? 0) === (game.awayScore ?? 0)) return null
+  return (game.homeScore ?? 0) > (game.awayScore ?? 0) ? game.homeTeamId : game.awayTeamId
+}
+
+function pickResult(game: Game, pick: GamePick) {
+  if (getStatusInfo(game.status).tone !== "final") {
+    return { label: "결과 대기", className: "bg-secondary text-secondary-foreground" }
+  }
+  return winningTeamId(game) === pick.pickedTeamId
+    ? { label: "응원 성공", className: "bg-primary/10 text-primary" }
+    : { label: "아쉬운 결과", className: "bg-muted text-muted-foreground" }
 }
 
 function TeamRow({
