@@ -9,6 +9,7 @@ import com.example.mlbanalysis.player.dto.PlayerResponse;
 import com.example.mlbanalysis.player.dto.PlayerSearchResponse;
 import com.example.mlbanalysis.player.dto.PlayerStatsResponse;
 import java.time.Year;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,10 +21,12 @@ public class PlayerService {
         this.mlbPlayerClient = mlbPlayerClient;
     }
 
+    @Cacheable(value = "mlbPlayers", key = "#playerId")
     public PlayerResponse getPlayer(Integer playerId) {
         return toPlayerResponse(mlbPlayerClient.getPlayer(playerId));
     }
 
+    @Cacheable(value = "mlbPlayerStats", key = "#playerId + ':' + (#season == null ? '' : #season) + ':' + (#group == null ? '' : #group)")
     public PlayerStatsResponse getPlayerStats(Integer playerId, String season, String group) {
         String resolvedSeason = season == null || season.isBlank() ? String.valueOf(Year.now().getValue()) : season;
         String resolvedGroup = group == null || group.isBlank() ? "hitting" : group;
@@ -36,6 +39,7 @@ public class PlayerService {
     }
 
 
+    @Cacheable(value = "mlbPlayerSearches", key = "#name == null ? '' : #name.trim().toLowerCase()")
     public PlayerSearchResponse searchPlayers(String name) {
         return new PlayerSearchResponse(name, mlbPlayerClient.searchPlayers(name).stream()
                 .map(this::toPlayerResponse)
