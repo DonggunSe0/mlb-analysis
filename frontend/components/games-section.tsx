@@ -1,21 +1,40 @@
 "use client"
 
 import useSWR from "swr"
-import { useMemo } from "react"
-import { fetcher, endpoints, type Game } from "@/lib/api"
+import { useMemo, useState } from "react"
+import {
+  AUTH_TOKEN_KEY,
+  endpoints,
+  fetcher,
+  fetchPreferences,
+  fetchGamePick,
+  submitGamePick,
+  type Game,
+  type GamePick,
+  type UserPreference,
+} from "@/lib/api"
 import { StatusBadge, getStatusInfo } from "@/components/status-badge"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { TeamLogo } from "@/components/media"
 import { cn } from "@/lib/utils"
+import { CheckCircle2, Lock } from "lucide-react"
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
 export function GamesSection({ date, onDateChange }: { date: string; onDateChange: (d: string) => void }) {
+  const [token] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
+  )
   const { data, error, isLoading, mutate } = useSWR<Game[]>(endpoints.games(date), fetcher, {
     revalidateOnFocus: false,
   })
+  const { data: preferences } = useSWR<UserPreference>(
+    token ? ["preferences", token] : null,
+    () => fetchPreferences(token!),
+    { revalidateOnFocus: false },
+  )
 
   const games = useMemo(() => data ?? [], [data])
 
@@ -99,7 +118,7 @@ export function GamesSection({ date, onDateChange }: { date: string; onDateChang
       {!isLoading && !error && games.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {games.map((g) => (
-            <GameCard key={g.gamePk} game={g} />
+            <GameCard key={g.gamePk} game={g} favoriteTeamId={preferences?.favoriteTeamId ?? null} />
           ))}
         </div>
       )}
@@ -151,24 +170,117 @@ function StatusDistribution({ buckets, total }: { buckets: Record<string, number
   )
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCard({ game, favoriteTeamId }: { game: Game; favoriteTeamId: number | null }) {
   const { tone } = getStatusInfo(game.status)
   const isFinal = tone === "final"
   const homeWin = isFinal && (game.homeScore ?? 0) > (game.awayScore ?? 0)
   const awayWin = isFinal && (game.awayScore ?? 0) > (game.homeScore ?? 0)
   const time = new Date(game.gameDate).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+  const hasFavoriteTeam = favoriteTeamId === game.homeTeamId || favoriteTeamId === game.awayTeamId
 
   return (
-    <article className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
+    <article
+      className={cn(
+        "rounded-xl border bg-card p-4 transition-colors hover:border-primary/40",
+        hasFavoriteTeam ? "border-primary/60 shadow-sm shadow-primary/10" : "border-border",
+      )}
+    >
       <div className="flex items-center justify-between">
-        <StatusBadge status={game.status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={game.status} />
+          {hasFavoriteTeam && (
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">내 팀</span>
+          )}
+        </div>
         <span className="font-mono text-xs text-muted-foreground">{time}</span>
       </div>
       <div className="mt-3 space-y-1">
         <TeamRow name={game.awayTeam} teamId={game.awayTeamId} score={game.awayScore} win={awayWin} suffix="원정" />
         <TeamRow name={game.homeTeam} teamId={game.homeTeamId} score={game.homeScore} win={homeWin} suffix="홈" />
       </div>
+      <GamePickControls game={game} />
     </article>
+  )
+}
+
+function GamePickControls({ game }: { game: Game }) {
+  const [token] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
+  )
+  const [message, setMessage] = useState<string | null>(null)
+  const { data: pick, mutate, isLoading } = useSWR<GamePick | undefined>(
+    token ? ["game-pick", game.gamePk, token] : null,
+    () => fetchGamePick(token!, game.gamePk),
+    { revalidateOnFocus: false },
+  )
+
+  async function choose(teamId: number | null, teamName: string | null) {
+    if (!token || !teamId || !teamName) return
+    setMessage(null)
+    try {
+      const saved = await submitGamePick(token, game.gamePk, teamId, teamName)
+      await mutate(saved, { revalidate: false })
+      setMessage(`${teamName} 픽이 저장됐습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "픽 저장에 실패했습니다.")
+    }
+  }
+
+  if (!token) {
+    return (
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Lock className="size-3.5" aria-hidden="true" />
+          올스타 투표에서 로그인하면 경기 승자 픽을 남길 수 있습니다.
+        </span>
+      </div>
+    )
+  }
+
+  const options = [
+    { id: game.awayTeamId, name: game.awayTeam, label: "원정" },
+    { id: game.homeTeamId, name: game.homeTeam, label: "홈" },
+  ]
+
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-muted-foreground">승리팀 픽</p>
+        {pick && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+            선택됨
+          </span>
+        )}
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {options.map((option) => {
+          const selected = pick?.pickedTeamId === option.id
+          return (
+            <button
+              key={option.label}
+              type="button"
+              disabled={!option.id || !option.name || isLoading}
+              onClick={() => choose(option.id, option.name)}
+              className={cn(
+                "min-h-10 rounded-md border px-2 py-2 text-left text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50",
+                selected
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-secondary text-secondary-foreground hover:bg-accent",
+              )}
+            >
+              <span className="block text-[10px] text-muted-foreground">{option.label}</span>
+              <span className="block truncate">{option.name ?? "미정"}</span>
+            </button>
+          )
+        })}
+      </div>
+      {(message || pick) && (
+        <p className="mt-2 truncate text-xs text-muted-foreground">
+          {message ?? `${pick?.pickedTeamName} 선택 중`}
+        </p>
+      )}
+    </div>
   )
 }
 
