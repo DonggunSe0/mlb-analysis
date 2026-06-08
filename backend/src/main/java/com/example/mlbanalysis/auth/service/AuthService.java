@@ -60,8 +60,13 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public CurrentUserResponse currentUser(String authorizationHeader) {
+        return toCurrentUser(requireUser(authorizationHeader));
+    }
+
+    @Transactional(readOnly = true)
+    public AuthUser requireUser(String authorizationHeader) {
         AuthToken authToken = findValidToken(extractBearerToken(authorizationHeader));
-        return toCurrentUser(authToken.getUser());
+        return authToken.getUser();
     }
 
     @Transactional

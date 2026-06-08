@@ -119,7 +119,7 @@ export function PlayersSection() {
   )
 }
 
-function PlayerDetailDialog({ playerId, onClose }: { playerId: number | null; onClose: () => void }) {
+export function PlayerDetailDialog({ playerId, onClose }: { playerId: number | null; onClose: () => void }) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -187,7 +187,15 @@ function PlayerDetail({ playerId }: { playerId: number }) {
     error: statsError,
     isLoading: statsLoading,
     mutate: mutateStats,
-  } = useSWR<PlayerStats>(endpoints.playerStats(playerId, currentSeason), fetcher, {
+  } = useSWR<PlayerStats>(endpoints.playerStats(playerId, currentSeason, "hitting"), fetcher, {
+    revalidateOnFocus: false,
+  })
+  const {
+    data: pitchingStats,
+    error: pitchingStatsError,
+    isLoading: pitchingStatsLoading,
+    mutate: mutatePitchingStats,
+  } = useSWR<PlayerStats>(endpoints.playerStats(playerId, currentSeason, "pitching"), fetcher, {
     revalidateOnFocus: false,
   })
 
@@ -238,13 +246,22 @@ function PlayerDetail({ playerId }: { playerId: number }) {
           </div>
         ))}
       </dl>
-      <SeasonHittingStats
-        season={currentSeason}
-        stats={stats}
-        isLoading={statsLoading}
-        hasError={Boolean(statsError)}
-        onRetry={() => mutateStats()}
-      />
+      <div className="space-y-0">
+        <SeasonHittingStats
+          season={currentSeason}
+          stats={stats}
+          isLoading={statsLoading}
+          hasError={Boolean(statsError)}
+          onRetry={() => mutateStats()}
+        />
+        <SeasonPitchingStats
+          season={currentSeason}
+          stats={pitchingStats}
+          isLoading={pitchingStatsLoading}
+          hasError={Boolean(pitchingStatsError)}
+          onRetry={() => mutatePitchingStats()}
+        />
+      </div>
     </article>
   )
 }
@@ -297,6 +314,112 @@ function SeasonHittingStats({
       )}
       {!isLoading && !hasError && hasStats && stats && <HittingStatsTable stats={stats} />}
     </section>
+  )
+}
+
+function SeasonPitchingStats({
+  season,
+  stats,
+  isLoading,
+  hasError,
+  onRetry,
+}: {
+  season: string
+  stats: PlayerStats | undefined
+  isLoading: boolean
+  hasError: boolean
+  onRetry: () => void
+}) {
+  const hasStats = Boolean(stats && (stats.gamesPitched != null || stats.era != null || stats.inningsPitched != null))
+
+  return (
+    <section aria-labelledby="player-pitching-heading" className="border-t border-border p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+            <BarChart3 className="size-4" aria-hidden="true" />
+            Season pitching
+          </p>
+          <h3 id="player-pitching-heading" className="mt-1 text-lg font-bold text-foreground">
+            {season} 현재 투수 기록
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">투수 출전 기록이 없으면 비어있게 표시됩니다.</p>
+        </div>
+        {hasStats && (
+          <span className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            ERA {formatStat(stats?.era)} · WHIP {formatStat(stats?.whip)}
+          </span>
+        )}
+      </div>
+
+      {isLoading && <LoadingState label="현재 시즌 투수 기록을 불러오는 중..." className="py-8" />}
+      {hasError && (
+        <ErrorState
+          message="투수 성적을 불러오지 못했습니다. 백엔드 서버 또는 MLB API 상태를 확인해 주세요."
+          onRetry={onRetry}
+          className="mt-4 py-8"
+        />
+      )}
+      {!isLoading && !hasError && !hasStats && <EmptyState message="현재 시즌에 표시할 투수 기록이 없습니다." className="py-8" />}
+      {!isLoading && !hasError && hasStats && stats && <PitchingStatsTable stats={stats} />}
+    </section>
+  )
+}
+
+function PitchingStatsTable({ stats }: { stats: PlayerStats }) {
+  const headline = [
+    { label: "ERA", value: stats.era, hint: "평균자책" },
+    { label: "WHIP", value: stats.whip, hint: "이닝당 출루" },
+    { label: "K/9", value: stats.strikeoutsPer9Inn, hint: "9이닝당 삼진" },
+    { label: "IP", value: stats.inningsPitched, hint: "이닝" },
+  ]
+  const rows = [
+    ["경기", stats.gamesPitched],
+    ["선발", stats.gamesStarted],
+    ["승", stats.wins],
+    ["패", stats.losses],
+    ["세이브", stats.saves],
+    ["홀드", stats.holds],
+    ["블론", stats.blownSaves],
+    ["이닝", stats.inningsPitched],
+    ["자책점", stats.earnedRuns],
+    ["피안타", stats.hits],
+    ["피홈런", stats.homeRuns],
+    ["볼넷", stats.baseOnBalls],
+    ["삼진", stats.strikeOuts],
+    ["타자 상대", stats.battersFaced],
+    ["완투", stats.completeGames],
+    ["완봉", stats.shutouts],
+    ["스트라이크%", stats.strikePercentage],
+    ["폭투", stats.wildPitches],
+    ["투구/이닝", stats.pitchesPerInning],
+    ["K/BB", stats.strikeoutWalkRatio],
+    ["BB/9", stats.walksPer9Inn],
+    ["H/9", stats.hitsPer9Inn],
+    ["HR/9", stats.homeRunsPer9],
+  ] as const
+  const visibleRows = rows.filter(([, value]) => value != null && value !== "")
+
+  return (
+    <div className="mt-5 space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {headline.map((item) => (
+          <div key={item.label} className="rounded-xl border border-border bg-secondary/50 p-4">
+            <dt className="text-xs font-semibold text-muted-foreground">{item.label}</dt>
+            <dd className="mt-1 text-2xl font-black tracking-tight text-foreground">{formatStat(item.value)}</dd>
+            <p className="mt-1 text-[11px] text-muted-foreground">{item.hint}</p>
+          </div>
+        ))}
+      </div>
+      <dl className="grid overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+        {visibleRows.map(([label, value]) => (
+          <div key={label} className="bg-card px-4 py-3">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-1 font-mono text-sm font-semibold text-foreground">{formatStat(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   )
 }
 

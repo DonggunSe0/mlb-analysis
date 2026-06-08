@@ -23,8 +23,8 @@ class GameServiceTest {
                 "2026-06-01T22:40:00Z",
                 new MlbGameStatusDto("Final"),
                 new MlbGameTeamsDto(
-                        new MlbGameTeamSideDto(new MlbGameTeamDto("Detroit Tigers"), 10),
-                        new MlbGameTeamSideDto(new MlbGameTeamDto("Tampa Bay Rays"), 9)
+                        new MlbGameTeamSideDto(new MlbGameTeamDto(116, "Detroit Tigers"), 10),
+                        new MlbGameTeamSideDto(new MlbGameTeamDto(139, "Tampa Bay Rays"), 9)
                 )
         ));
 
@@ -34,7 +34,9 @@ class GameServiceTest {
         assertThat(response.games().getFirst().gamePk()).isEqualTo(822974L);
         assertThat(response.games().getFirst().gameDate()).isEqualTo("2026-06-01T22:40:00Z");
         assertThat(response.games().getFirst().status()).isEqualTo("Final");
+        assertThat(response.games().getFirst().awayTeamId()).isEqualTo(116);
         assertThat(response.games().getFirst().awayTeam()).isEqualTo("Detroit Tigers");
+        assertThat(response.games().getFirst().homeTeamId()).isEqualTo(139);
         assertThat(response.games().getFirst().homeTeam()).isEqualTo("Tampa Bay Rays");
         assertThat(response.games().getFirst().awayScore()).isEqualTo(10);
         assertThat(response.games().getFirst().homeScore()).isEqualTo(9);

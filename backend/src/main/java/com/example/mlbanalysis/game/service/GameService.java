@@ -33,11 +33,17 @@ public class GameService {
                 game.gamePk(),
                 game.gameDate(),
                 game.status() == null ? null : game.status().detailedState(),
+                teamId(home),
                 teamName(home),
+                teamId(away),
                 teamName(away),
                 home == null ? null : home.score(),
                 away == null ? null : away.score()
         );
+    }
+
+    private Integer teamId(MlbGameTeamSideDto side) {
+        return side == null || side.team() == null ? null : side.team().id();
     }
 
     private String teamName(MlbGameTeamSideDto side) {
