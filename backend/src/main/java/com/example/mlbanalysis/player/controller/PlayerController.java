@@ -2,6 +2,7 @@ package com.example.mlbanalysis.player.controller;
 
 import com.example.mlbanalysis.player.dto.PlayerResponse;
 import com.example.mlbanalysis.player.dto.PlayerSearchResponse;
+import com.example.mlbanalysis.player.dto.PlayerStatsResponse;
 import com.example.mlbanalysis.player.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,5 +32,15 @@ public class PlayerController {
     @GetMapping("/{playerId}")
     public PlayerResponse getPlayer(@PathVariable Integer playerId) {
         return playerService.getPlayer(playerId);
+    }
+
+    @Operation(summary = "Return season stats for an MLB player from the external MLB Stats API")
+    @GetMapping("/{playerId}/stats")
+    public PlayerStatsResponse getPlayerStats(
+            @PathVariable Integer playerId,
+            @RequestParam(required = false) String season,
+            @RequestParam(defaultValue = "hitting") String group
+    ) {
+        return playerService.getPlayerStats(playerId, season, group);
     }
 }

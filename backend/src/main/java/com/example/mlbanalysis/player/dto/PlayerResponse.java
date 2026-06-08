@@ -7,6 +7,7 @@ public record PlayerResponse(
         Integer currentAge,
         String primaryPosition,
         String batSide,
-        String pitchHand
+        String pitchHand,
+        String headshotUrl
 ) {
 }
