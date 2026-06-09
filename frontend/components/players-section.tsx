@@ -1,118 +1,232 @@
 "use client"
 
 import useSWR from "swr"
-import { useEffect, useId, useRef, useState } from "react"
-import { fetcher, endpoints, type Player, type PlayerStats } from "@/lib/api"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
+import { fetcher, endpoints, type Player, type PlayerBrowseResponse, type PlayerStats, type Team } from "@/lib/api"
 import { LoadingState, ErrorState, EmptyState } from "@/components/states"
 import { PlayerAvatar } from "@/components/media"
 import { cn } from "@/lib/utils"
 import { BarChart3, Search, TrendingUp, X } from "lucide-react"
 
+const PLAYER_PAGE_SIZE = 20
+
+type PlayerFilters = {
+  country: string
+  teamId: string
+  position: string
+}
+
 export function PlayersSection() {
   const [input, setInput] = useState("")
   const [query, setQuery] = useState("")
+  const [filters, setFilters] = useState<PlayerFilters>({ country: "", teamId: "", position: "" })
+  const [page, setPage] = useState(0)
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
+  const browseUrl = useMemo(
+    () => endpoints.players({
+      page,
+      size: PLAYER_PAGE_SIZE,
+      q: query,
+      country: filters.country,
+      teamId: filters.teamId,
+      position: filters.position,
+    }),
+    [filters.country, filters.position, filters.teamId, page, query],
+  )
+
   const {
-    data: results,
+    data: browse,
     error,
     isLoading,
     mutate,
-  } = useSWR<Player[]>(query ? endpoints.search(query) : null, fetcher, {
+  } = useSWR<PlayerBrowseResponse>(browseUrl, fetcher, {
+    revalidateOnFocus: false,
+  })
+  const { data: teams } = useSWR<Team[]>(endpoints.teams(), fetcher, {
     revalidateOnFocus: false,
   })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setSelectedId(null)
+    setPage(0)
     setQuery(input.trim())
   }
 
-  const list = results ?? []
+  function updateFilter<K extends keyof PlayerFilters>(key: K, value: PlayerFilters[K]) {
+    setSelectedId(null)
+    setPage(0)
+    setFilters((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function clearFilters() {
+    setInput("")
+    setQuery("")
+    setPage(0)
+    setSelectedId(null)
+    setFilters({ country: "", teamId: "", position: "" })
+  }
+
+  const list = browse?.players ?? []
+  const teamNameById = useMemo(() => new Map((teams ?? []).map((team) => [team.id, team.name])), [teams])
+  const filterTeams = useMemo(() => {
+    const ids = new Set((browse?.teams ?? []).map((team) => team.id))
+    const fromTeamEndpoint = (teams ?? [])
+      .filter((team) => ids.has(team.id))
+      .map((team) => ({ id: team.id, name: team.name }))
+    if (fromTeamEndpoint.length > 0) return fromTeamEndpoint
+    return browse?.teams ?? []
+  }, [browse?.teams, teams])
+  const hasActiveFilters = Boolean(query || filters.country || filters.teamId || filters.position)
 
   return (
     <section aria-labelledby="players-heading" className="space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">PLAYERS</p>
         <h1 id="players-heading" className="mt-1 text-2xl font-bold tracking-tight text-foreground">
-          선수 검색
+          선수 탐색
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          선수 이름(영문)으로 검색하세요. 예: Mike Trout, Shohei Ohtani
+          검색어 없이도 A-Z 순으로 20명씩 둘러보고, 국가·팀·포지션 필터로 좁혀볼 수 있습니다.
         </p>
       </div>
 
-      <form onSubmit={submit} className="flex max-w-xl gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <input
-            type="search"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="선수 이름 입력"
-            aria-label="선수 이름 입력"
-            className="w-full rounded-md border border-input bg-secondary py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          />
+      <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <input
+              type="search"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="선수 이름 입력 (선택)"
+              aria-label="선수 이름 입력"
+              className="w-full rounded-md border border-input bg-secondary py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            검색/적용
+          </button>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="rounded-md border border-border bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              초기화
+            </button>
+          )}
+        </form>
+
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          <label className="space-y-1 text-xs font-medium text-muted-foreground">
+            국가
+            <select
+              value={filters.country}
+              onChange={(e) => updateFilter("country", e.target.value)}
+              className="w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm text-foreground"
+            >
+              <option value="">전체 국가</option>
+              {(browse?.countries ?? []).map((country) => <option key={country} value={country}>{country}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs font-medium text-muted-foreground">
+            팀
+            <select
+              value={filters.teamId}
+              onChange={(e) => updateFilter("teamId", e.target.value)}
+              className="w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm text-foreground"
+            >
+              <option value="">전체 팀</option>
+              {filterTeams.map((team) => <option key={team.id} value={String(team.id)}>{team.name ?? `팀 #${team.id}`}</option>)}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs font-medium text-muted-foreground">
+            포지션
+            <select
+              value={filters.position}
+              onChange={(e) => updateFilter("position", e.target.value)}
+              className="w-full rounded-md border border-input bg-secondary px-3 py-2 text-sm text-foreground"
+            >
+              <option value="">전체 포지션</option>
+              {(browse?.positions ?? []).map((position) => <option key={position} value={position}>{position}</option>)}
+            </select>
+          </label>
         </div>
-        <button
-          type="submit"
-          disabled={!input.trim()}
-          className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          검색
-        </button>
-      </form>
+      </div>
 
-      {!query && <EmptyState message="검색어를 입력하고 검색 버튼을 누르면 결과가 표시됩니다." />}
-
-      {query && (
-        <div className="min-w-0">
-          {isLoading && <LoadingState label="선수를 검색하는 중..." />}
-          {error && (
-            <ErrorState message="선수 검색에 실패했습니다. 잠시 후 다시 시도해 주세요." onRetry={() => mutate()} />
-          )}
-          {!isLoading && !error && list.length === 0 && (
-            <EmptyState message="검색 결과가 없습니다. 선수 이름을 다시 입력해 주세요." />
-          )}
-          {!isLoading && !error && list.length > 0 && (
-            <div className="space-y-3">
+      <div className="min-w-0">
+        {isLoading && <LoadingState label="선수 목록을 불러오는 중..." />}
+        {error && (
+          <ErrorState message="선수 목록을 불러오지 못했습니다. 백엔드 서버 또는 MLB API 상태를 확인해 주세요." onRetry={() => mutate()} />
+        )}
+        {!isLoading && !error && list.length === 0 && (
+          <EmptyState message="조건에 맞는 선수가 없습니다. 검색어나 필터를 조정해 주세요." />
+        )}
+        {!isLoading && !error && list.length > 0 && browse && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
-                검색 결과 <span className="font-mono font-semibold text-foreground">{list.length}</span>명 · 선수를 누르면 상세 팝업이 열립니다.
+                A-Z 선수 목록 <span className="font-mono font-semibold text-foreground">{browse.totalElements}</span>명 · {browse.size}명씩 보기 · 선수를 누르면 상세 팝업이 열립니다.
               </p>
-              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {list.map((p) => {
-                  const isActive = selectedId === p.id
-                  return (
-                    <li key={p.id}>
-                      <button
-                        onClick={() => setSelectedId(p.id)}
-                        aria-haspopup="dialog"
-                        aria-pressed={isActive}
-                        className={cn(
-                          "flex h-full w-full items-center gap-4 rounded-xl border p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                          isActive
-                            ? "border-primary bg-primary/10"
-                            : "border-border bg-card hover:border-primary/40 hover:bg-accent",
-                        )}
-                      >
-                        <PlayerAvatar playerId={p.id} name={p.fullName} size={180} className="size-16 shrink-0 text-sm" />
-                        <div className="min-w-0">
-                          <p className="truncate text-base font-semibold text-foreground">{p.fullName}</p>
-                          <p className="mt-1 truncate text-sm text-muted-foreground">
-                            {p.primaryPosition ?? "포지션 정보 없음"}
-                            {p.birthCountry ? ` · ${p.birthCountry}` : ""}
-                          </p>
-                          <p className="mt-2 text-xs font-medium text-primary">상세 보기</p>
-                        </div>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  disabled={browse.first}
+                  onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                  className="rounded-md border border-border bg-secondary px-3 py-1.5 font-semibold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  이전
+                </button>
+                <span className="font-mono font-semibold text-foreground">{browse.totalPages === 0 ? 0 : browse.page + 1} / {browse.totalPages}</span>
+                <button
+                  type="button"
+                  disabled={browse.last}
+                  onClick={() => setPage((prev) => prev + 1)}
+                  className="rounded-md border border-border bg-secondary px-3 py-1.5 font-semibold text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  다음
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      )}
+            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {list.map((p) => {
+                const isActive = selectedId === p.id
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => setSelectedId(p.id)}
+                      aria-haspopup="dialog"
+                      aria-pressed={isActive}
+                      className={cn(
+                        "flex h-full w-full items-center gap-4 rounded-xl border p-4 text-left shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                        isActive
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-card hover:border-primary/40 hover:bg-accent",
+                      )}
+                    >
+                      <PlayerAvatar playerId={p.id} name={p.fullName} size={180} className="size-16 shrink-0 text-sm" />
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-foreground">{p.fullName}</p>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
+                          {p.primaryPosition ?? "포지션 정보 없음"}
+                          {teamLabel(p, teamNameById) ? ` · ${teamLabel(p, teamNameById)}` : ""}
+                          {p.birthCountry ? ` · ${p.birthCountry}` : ""}
+                        </p>
+                        <p className="mt-2 text-xs font-medium text-primary">상세 보기</p>
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
 
       <PlayerDetailDialog playerId={selectedId} onClose={() => setSelectedId(null)} />
     </section>
@@ -497,4 +611,11 @@ function HittingStatsTable({ stats }: { stats: PlayerStats }) {
 function formatStat(value: number | string | null | undefined) {
   if (value == null || value === "") return "-"
   return String(value)
+}
+
+
+function teamLabel(player: Player, teamNameById: Map<number, string>) {
+  if (player.currentTeamName) return player.currentTeamName
+  if (player.currentTeamId == null) return null
+  return teamNameById.get(player.currentTeamId) ?? `팀 #${player.currentTeamId}`
 }

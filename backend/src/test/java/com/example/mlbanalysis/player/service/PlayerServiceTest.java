@@ -8,6 +8,7 @@ import com.example.mlbanalysis.player.client.dto.MlbPlayerDto;
 import com.example.mlbanalysis.player.client.dto.MlbPlayerPositionDto;
 import com.example.mlbanalysis.player.client.dto.MlbPlayerSideDto;
 import com.example.mlbanalysis.player.client.dto.MlbPlayerSeasonStatDto;
+import com.example.mlbanalysis.player.client.dto.MlbPlayerTeamDto;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -66,6 +67,47 @@ class PlayerServiceTest {
         assertThat(response.players()).hasSize(1);
         assertThat(response.players().getFirst().id()).isEqualTo(545361);
         assertThat(response.players().getFirst().fullName()).isEqualTo("Mike Trout");
+    }
+
+
+    @Test
+    void browsesActivePlayersAlphabeticallyWithDefaultPagination() {
+        var service = new PlayerService(new BrowseClient(List.of(
+                player(3, "Carlos Correa", "Puerto Rico", true, 118, "Minnesota Twins", "Shortstop", "6", "SS"),
+                player(1, "Andrew Abbott", "USA", true, 113, "Cincinnati Reds", "Pitcher", "1", "P"),
+                player(2, "Bo Bichette", "USA", true, 141, "Toronto Blue Jays", "Shortstop", "6", "SS"),
+                player(99, "Retired Player", "USA", false, 113, "Cincinnati Reds", "Pitcher", "1", "P")
+        )));
+
+        var response = service.browsePlayers("2026", null, null, null, null, null, null);
+
+        assertThat(response.page()).isZero();
+        assertThat(response.size()).isEqualTo(20);
+        assertThat(response.totalElements()).isEqualTo(3);
+        assertThat(response.players()).extracting("fullName").containsExactly("Andrew Abbott", "Bo Bichette", "Carlos Correa");
+        assertThat(response.countries()).containsExactly("Puerto Rico", "USA");
+        assertThat(response.positions()).containsExactly("Pitcher", "Shortstop");
+        assertThat(response.teams()).extracting("id").containsExactly(113, 118, 141);
+    }
+
+    @Test
+    void browsesPlayersWithCombinedFiltersAndPagination() {
+        var service = new PlayerService(new BrowseClient(List.of(
+                player(1, "Andrew Abbott", "USA", true, 113, "Cincinnati Reds", "Pitcher", "1", "P"),
+                player(2, "Austin Riley", "USA", true, 144, "Atlanta Braves", "Third Baseman", "5", "3B"),
+                player(3, "Bo Bichette", "USA", true, 141, "Toronto Blue Jays", "Shortstop", "6", "SS"),
+                player(4, "Bobby Witt Jr.", "USA", true, 118, "Kansas City Royals", "Shortstop", "6", "SS")
+        )));
+
+        var response = service.browsePlayers("2026", "Bo", "usa", null, "SS", 0, 1);
+
+        assertThat(response.totalElements()).isEqualTo(2);
+        assertThat(response.totalPages()).isEqualTo(2);
+        assertThat(response.players()).extracting("fullName").containsExactly("Bo Bichette");
+        assertThat(response.last()).isFalse();
+
+        var teamFiltered = service.browsePlayers("2026", null, null, 118, "Shortstop", 0, 20);
+        assertThat(teamFiltered.players()).extracting("fullName").containsExactly("Bobby Witt Jr.");
     }
 
     @Test
@@ -137,4 +179,41 @@ class PlayerServiceTest {
 
         assertThatThrownBy(() -> service.getPlayer(545361)).isInstanceOf(MlbApiException.class);
     }
+
+    private static MlbPlayerDto player(
+            Integer id,
+            String name,
+            String country,
+            Boolean active,
+            Integer teamId,
+            String teamName,
+            String positionName,
+            String positionCode,
+            String positionAbbreviation
+    ) {
+        return new MlbPlayerDto(
+                id,
+                name,
+                country,
+                27,
+                active,
+                new MlbPlayerTeamDto(teamId, teamName),
+                new MlbPlayerPositionDto(positionCode, positionName, null, positionAbbreviation),
+                new MlbPlayerSideDto("R", "Right"),
+                new MlbPlayerSideDto("R", "Right")
+        );
+    }
+
+    private record BrowseClient(List<MlbPlayerDto> players) implements com.example.mlbanalysis.player.client.MlbPlayerClient {
+        @Override
+        public MlbPlayerDto getPlayer(Integer playerId) {
+            return players.stream().filter(player -> player.id().equals(playerId)).findFirst().orElseThrow();
+        }
+
+        @Override
+        public List<MlbPlayerDto> getPlayers(String season) {
+            return players;
+        }
+    }
+
 }

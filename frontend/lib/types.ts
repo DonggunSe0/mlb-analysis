@@ -53,9 +53,31 @@ export type Player = {
   birthCountry: string | null
   currentAge: number | null
   primaryPosition: string | null
+  primaryPositionCode?: string | null
+  primaryPositionAbbreviation?: string | null
+  currentTeamId?: number | null
+  currentTeamName?: string | null
   batSide: string | null
   pitchHand: string | null
   headshotUrl?: string | null
+}
+
+export type PlayerTeamOption = {
+  id: number
+  name: string | null
+}
+
+export type PlayerBrowseResponse = {
+  players: Player[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+  countries: string[]
+  positions: string[]
+  teams: PlayerTeamOption[]
 }
 
 export type PlayerStats = {

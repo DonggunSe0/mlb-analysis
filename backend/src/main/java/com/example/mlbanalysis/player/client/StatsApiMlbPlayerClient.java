@@ -62,6 +62,28 @@ public class StatsApiMlbPlayerClient implements MlbPlayerClient {
     }
 
     @Override
+    public List<MlbPlayerDto> getPlayers(String season) {
+        try {
+            MlbPeopleApiResponse response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/sports/1/players")
+                            .queryParam("season", season)
+                            .build())
+                    .retrieve()
+                    .body(MlbPeopleApiResponse.class);
+
+            if (response == null || response.people() == null) {
+                throw new MlbApiException("MLB player browse response body is empty or malformed.");
+            }
+            return response.people();
+        } catch (MlbApiException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new MlbApiException("Failed to retrieve MLB player list data.", exception);
+        }
+    }
+
+    @Override
     public MlbPlayerSeasonStatDto getPlayerStats(Integer playerId, String season, String group) {
         try {
             MlbPlayerStatsApiResponse response = restClient.get()

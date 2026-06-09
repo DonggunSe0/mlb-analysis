@@ -1,5 +1,6 @@
 package com.example.mlbanalysis.player.controller;
 
+import com.example.mlbanalysis.player.dto.PlayerBrowseResponse;
 import com.example.mlbanalysis.player.dto.PlayerResponse;
 import com.example.mlbanalysis.player.dto.PlayerSearchResponse;
 import com.example.mlbanalysis.player.dto.PlayerStatsResponse;
@@ -21,6 +22,21 @@ public class PlayerController {
         this.playerService = playerService;
     }
 
+
+
+    @Operation(summary = "Browse current MLB players with pagination and filters from the external MLB Stats API")
+    @GetMapping
+    public PlayerBrowseResponse browsePlayers(
+            @RequestParam(required = false) String season,
+            @RequestParam(required = false, name = "q") String query,
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) Integer teamId,
+            @RequestParam(required = false) String position,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
+    ) {
+        return playerService.browsePlayers(season, query, country, teamId, position, page, size);
+    }
 
     @Operation(summary = "Search MLB players by name from the external MLB Stats API")
     @GetMapping("/search")
