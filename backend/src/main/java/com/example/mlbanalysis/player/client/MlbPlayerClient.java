@@ -12,6 +12,10 @@ public interface MlbPlayerClient {
         throw new UnsupportedOperationException("Player search is not implemented.");
     }
 
+    default List<MlbPlayerDto> getPlayers(String season) {
+        throw new UnsupportedOperationException("Player browsing is not implemented.");
+    }
+
     default MlbPlayerSeasonStatDto getPlayerStats(Integer playerId, String season, String group) {
         throw new UnsupportedOperationException("Player stats are not implemented.");
     }

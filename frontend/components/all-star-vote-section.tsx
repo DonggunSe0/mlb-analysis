@@ -11,6 +11,7 @@ import {
   type AllStarVoteResults,
   type AllStarVoteStatus,
   type Player,
+  type PlayerStats,
   fetcher,
 } from "@/lib/api"
 import { EmptyState, ErrorState, LoadingState } from "@/components/states"
@@ -61,6 +62,14 @@ export function AllStarVoteSection({ token }: { token: string | null }) {
   )
 
   const selectedList = useMemo(() => Object.values(selections), [selections])
+  const currentSeason = String(new Date().getFullYear())
+  const selectedForPosition = selections[selectedPosition] ?? voteStatus?.ballot?.selections.find((item) => item.positionKey === selectedPosition)
+  const statsGroup = selectedPosition === "P" ? "pitching" : "hitting"
+  const { data: supportStats, error: supportStatsError, isLoading: supportStatsLoading } = useSWR<PlayerStats>(
+    selectedForPosition ? endpoints.playerStats(selectedForPosition.playerId, currentSeason, statsGroup) : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  )
 
   function pickPlayer(player: Player) {
     const position = POSITIONS.find((item) => item.key === selectedPosition)
@@ -170,6 +179,9 @@ export function AllStarVoteSection({ token }: { token: string | null }) {
                   <input value={playerQuery} onChange={(e) => setPlayerQuery(e.target.value)} placeholder="선수 이름 검색" className="w-full rounded-md border border-input bg-secondary py-2 pl-9 pr-3 text-sm" />
                 </div>
                 {playerLoading && <LoadingState label="선수 검색 중..." className="py-6" />}
+                {players && players.length === 0 && playerQuery.trim() && (
+                  <EmptyState message="검색 결과가 없습니다." className="py-6" />
+                )}
                 {players && players.length > 0 && (
                   <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto">
                     {players.map((player) => (
@@ -186,6 +198,13 @@ export function AllStarVoteSection({ token }: { token: string | null }) {
                   </ul>
                 )}
               </div>
+              <AllStarMetricCard
+                selection={selectedForPosition}
+                positionKey={selectedPosition}
+                stats={supportStats}
+                isLoading={supportStatsLoading}
+                hasError={Boolean(supportStatsError)}
+              />
               <div className="rounded-2xl border border-border bg-card p-4">
                 <p className="font-bold text-foreground">선택 선수 {selectedList.length}/10</p>
                 {selectedList.length === 0 ? <EmptyState message="포지션을 고르고 선수를 추가하세요." /> : (
@@ -282,4 +301,75 @@ function AllStarResultsPanel({
 
 function positionLabel(positionKey: string) {
   return POSITIONS.find((position) => position.key === positionKey)?.label ?? positionKey
+}
+
+
+function AllStarMetricCard({
+  selection,
+  positionKey,
+  stats,
+  isLoading,
+  hasError,
+}: {
+  selection: AllStarSelection | undefined
+  positionKey: string
+  stats: PlayerStats | undefined
+  isLoading: boolean
+  hasError: boolean
+}) {
+  const isPitcher = positionKey === "P"
+  const rows = isPitcher
+    ? [
+        ["ERA", stats?.era, "평균자책"],
+        ["WHIP", stats?.whip, "이닝당 출루"],
+        ["K/BB", stats?.strikeoutWalkRatio, "삼진/볼넷"],
+        ["K/9", stats?.strikeoutsPer9Inn, "9이닝당 삼진"],
+      ]
+    : [
+        ["OPS", stats?.ops, "출루율+장타율"],
+        ["OBP", stats?.obp, "출루율"],
+        ["SLG", stats?.slg, "장타율"],
+        ["BABIP", stats?.babip, "인플레이 타율"],
+      ]
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+            <BarChart3 className="size-4" aria-hidden="true" />
+            SUPPORT METRICS
+          </p>
+          <h3 className="mt-1 text-sm font-bold text-foreground">선택 참고 지표</h3>
+          <p className="mt-1 text-xs text-muted-foreground">현재 시즌 MLB Stats API 기준 · 지표는 선택 참고용입니다.</p>
+        </div>
+      </div>
+      {!selection && <EmptyState message="현재 포지션에서 선수를 선택하면 간단한 참고 지표를 표시합니다." className="py-6" />}
+      {selection && isLoading && <LoadingState label="참고 지표를 불러오는 중..." className="py-6" />}
+      {selection && hasError && !isLoading && (
+        <p className="mt-4 rounded-xl border border-dashed border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+          지표를 불러오지 못했지만 투표는 계속 진행할 수 있습니다.
+        </p>
+      )}
+      {selection && !isLoading && !hasError && (
+        <div className="mt-4 space-y-3">
+          <p className="truncate text-sm font-semibold text-foreground">{selection.playerName}</p>
+          <dl className="grid grid-cols-2 gap-2">
+            {rows.map(([label, value, hint]) => (
+              <div key={label} className="rounded-xl border border-border bg-secondary/50 p-3">
+                <dt className="text-[11px] font-semibold text-muted-foreground">{label}</dt>
+                <dd className="mt-1 font-mono text-lg font-black text-foreground">{formatMetric(value)}</dd>
+                <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function formatMetric(value: number | string | null | undefined) {
+  if (value == null || value === "") return "-"
+  return String(value)
 }

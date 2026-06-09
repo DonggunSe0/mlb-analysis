@@ -10,6 +10,7 @@ import type {
   GamePickSummary,
   NewsItem,
   Player,
+  PlayerBrowseResponse,
   PlayerStats,
   Team,
   TeamPlayer,
@@ -80,6 +81,17 @@ export const endpoints = {
   teams: () => '/api/v1/teams',
   standings: (season: string) => `/api/v1/teams/standings?season=${encodeURIComponent(season)}`,
   roster: (teamId: number) => `/api/v1/teams/${teamId}/players`,
+  players: (params: { page?: number; size?: number; q?: string; country?: string; teamId?: string; position?: string } = {}) => {
+    const searchParams = new URLSearchParams()
+    if (params.page != null) searchParams.set('page', String(params.page))
+    if (params.size != null) searchParams.set('size', String(params.size))
+    if (params.q) searchParams.set('q', params.q)
+    if (params.country) searchParams.set('country', params.country)
+    if (params.teamId) searchParams.set('teamId', params.teamId)
+    if (params.position) searchParams.set('position', params.position)
+    const query = searchParams.toString()
+    return query ? `/api/v1/players?${query}` : '/api/v1/players'
+  },
   search: (name: string) => `/api/v1/players/search?name=${encodeURIComponent(name)}`,
   player: (playerId: number) => `/api/v1/players/${playerId}`,
   playerStats: (playerId: number, season: string, group = 'hitting') => `/api/v1/players/${playerId}/stats?season=${encodeURIComponent(season)}&group=${encodeURIComponent(group)}`,
@@ -172,6 +184,7 @@ export type {
   GamePickSummary,
   NewsItem,
   Player,
+  PlayerBrowseResponse,
   PlayerStats,
   Team,
   TeamPlayer,

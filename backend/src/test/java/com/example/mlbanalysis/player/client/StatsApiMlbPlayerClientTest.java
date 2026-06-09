@@ -77,6 +77,55 @@ class StatsApiMlbPlayerClientTest {
         server.verify();
     }
 
+
+    @Test
+    void requestsPlayerBrowseEndpointAndDeserializesResponse() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/sports/1/players?season=2026")))
+                .andRespond(withSuccess("""
+                        { "people": [ {
+                          "id": 671096,
+                          "fullName": "Andrew Abbott",
+                          "birthCountry": "USA",
+                          "currentAge": 27,
+                          "active": true,
+                          "currentTeam": { "id": 113, "name": "Cincinnati Reds" },
+                          "primaryPosition": { "code": "1", "name": "Pitcher", "type": "Pitcher", "abbreviation": "P" },
+                          "batSide": { "code": "L", "description": "Left" },
+                          "pitchHand": { "code": "L", "description": "Left" }
+                        } ] }
+                        """, MediaType.APPLICATION_JSON));
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        var players = client.getPlayers("2026");
+
+        assertThat(players).hasSize(1);
+        assertThat(players.getFirst().id()).isEqualTo(671096);
+        assertThat(players.getFirst().active()).isTrue();
+        assertThat(players.getFirst().currentTeam().id()).isEqualTo(113);
+        assertThat(players.getFirst().primaryPosition().abbreviation()).isEqualTo("P");
+        server.verify();
+    }
+
+    @Test
+    void convertsPlayerBrowseServerFailureToMlbApiException() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/sports/1/players?season=2026")))
+                .andRespond(withServerError());
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        assertThatThrownBy(() -> client.getPlayers("2026")).isInstanceOf(MlbApiException.class);
+        server.verify();
+    }
+
+    @Test
+    void convertsMalformedPlayerBrowseResponseToMlbApiException() {
+        server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/sports/1/players?season=2026")))
+                .andRespond(withSuccess("{\"unexpected\":true}", MediaType.APPLICATION_JSON));
+        var client = new StatsApiMlbPlayerClient(restClientBuilder.baseUrl("https://statsapi.mlb.test/api/v1").build());
+
+        assertThatThrownBy(() -> client.getPlayers("2026")).isInstanceOf(MlbApiException.class);
+        server.verify();
+    }
+
     @Test
     void requestsPlayerStatsEndpointAndDeserializesSeasonStats() {
         server.expect(once(), requestTo(URI.create("https://statsapi.mlb.test/api/v1/people/545361/stats?stats=season&group=hitting&season=2025")))
