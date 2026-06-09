@@ -4,23 +4,19 @@ import useSWR from "swr"
 import { useMemo, useState } from "react"
 import {
   endpoints,
-  AUTH_TOKEN_KEY,
   fetchAllStarResults,
   fetchAllStarStatus,
-  login,
-  register,
   submitAllStarVote,
   type AllStarSelection,
   type AllStarVoteResults,
   type AllStarVoteStatus,
-  type AuthResponse,
   type Player,
   fetcher,
 } from "@/lib/api"
 import { EmptyState, ErrorState, LoadingState } from "@/components/states"
 import { PlayerAvatar } from "@/components/media"
 import { cn } from "@/lib/utils"
-import { BarChart3, CheckCircle2, Lock, Search, Trophy, UserPlus } from "lucide-react"
+import { BarChart3, CheckCircle2, Lock, Search, Trophy } from "lucide-react"
 
 const POSITIONS = [
   { key: "P", label: "투수", x: "50%", y: "42%" },
@@ -35,15 +31,7 @@ const POSITIONS = [
   { key: "DH", label: "지명타자", x: "50%", y: "62%" },
 ]
 
-export function AllStarVoteSection() {
-  const [token, setToken] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : localStorage.getItem(AUTH_TOKEN_KEY),
-  )
-  const [authMode, setAuthMode] = useState<"login" | "register">("login")
-  const [authError, setAuthError] = useState<string | null>(null)
-  const [email, setEmail] = useState("")
-  const [displayName, setDisplayName] = useState("")
-  const [password, setPassword] = useState("")
+export function AllStarVoteSection({ token }: { token: string | null }) {
   const [selectedPosition, setSelectedPosition] = useState("P")
   const [playerQuery, setPlayerQuery] = useState("")
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null)
@@ -73,27 +61,6 @@ export function AllStarVoteSection() {
   )
 
   const selectedList = useMemo(() => Object.values(selections), [selections])
-
-  async function handleAuth(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthError(null)
-    try {
-      const response: AuthResponse = authMode === "login"
-        ? await login(email, password)
-        : await register(email, displayName || email.split("@")[0], password)
-      localStorage.setItem(AUTH_TOKEN_KEY, response.token)
-      setToken(response.token)
-      setPassword("")
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "로그인 서버에 연결하지 못했습니다. backend를 login profile로 실행해 주세요.")
-    }
-  }
-
-  function logout() {
-    localStorage.removeItem(AUTH_TOKEN_KEY)
-    setToken(null)
-    setSelections({})
-  }
 
   function pickPlayer(player: Player) {
     const position = POSITIONS.find((item) => item.key === selectedPosition)
@@ -130,9 +97,6 @@ export function AllStarVoteSection() {
           <h1 id="all-star-heading" className="mt-1 text-2xl font-bold tracking-tight text-foreground">올스타 투표</h1>
           <p className="mt-1 text-sm text-muted-foreground">야구장 포메이션에서 포지션을 고르고 선수를 검색해 하루 한 번 저장합니다.</p>
         </div>
-        {token && (
-          <button onClick={logout} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold text-secondary-foreground hover:bg-accent">로그아웃</button>
-        )}
       </div>
 
       <AllStarResultsPanel
@@ -143,22 +107,17 @@ export function AllStarVoteSection() {
       />
 
       {!token && (
-        <form onSubmit={handleAuth} className="max-w-xl rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-            {authMode === "login" ? <Lock className="size-4" /> : <UserPlus className="size-4" />}
-            {authMode === "login" ? "계정 로그인" : "계정 만들기"}
+        <div className="rounded-2xl border border-dashed border-border bg-card/60 p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+              <Lock className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-foreground">투표 참여는 로그인이 필요합니다</p>
+              <p className="mt-1 text-sm text-muted-foreground">결과는 누구나 볼 수 있고, 선수 선택과 저장은 상단 로그인/회원가입 후 진행됩니다.</p>
+            </div>
           </div>
-          <div className="mt-4 grid gap-3">
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="email@example.com" className="rounded-md border border-input bg-secondary px-3 py-2 text-sm" required />
-            {authMode === "register" && <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="표시 이름" className="rounded-md border border-input bg-secondary px-3 py-2 text-sm" />}
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="비밀번호" className="rounded-md border border-input bg-secondary px-3 py-2 text-sm" required />
-            {authError && <p className="text-sm text-destructive">{authError}</p>}
-            <button className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">{authMode === "login" ? "로그인하고 투표 참여" : "가입하고 투표 참여"}</button>
-            <button type="button" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} className="text-sm font-semibold text-primary">
-              {authMode === "login" ? "계정이 없으면 회원가입" : "이미 계정이 있으면 로그인"}
-            </button>
-          </div>
-        </form>
+        </div>
       )}
 
       {token && (

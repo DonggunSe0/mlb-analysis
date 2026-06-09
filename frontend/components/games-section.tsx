@@ -435,7 +435,7 @@ function GamePickControls({
       <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <Lock className="size-3.5" aria-hidden="true" />
-          올스타 투표에서 로그인하면 경기에서 응원할 팀을 남길 수 있습니다.
+          상단에서 로그인하면 경기에서 응원할 팀을 남길 수 있습니다.
         </span>
       </div>
     )
